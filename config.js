@@ -25,10 +25,11 @@ var config = {};
 // Sqlite config:
 //
 config.db = {
-	client: 'sqlite3',
-	connection: {
-		filename: './nodervisor.sqlite'
-	}
+        client: 'sqlite3',
+        connection: {
+                filename: './nodervisor.sqlite'
+        },
+        useNullAsDefault: true
 };
 // End of Database config
 
@@ -36,10 +37,11 @@ config.db = {
 // We're using Knex as with the db above, but only using sqlite and not mysql
 // The express-session-knex module seems to have issues with mysql locks.
 config.sessionstore = {
-	client: 'sqlite3',
-	connection: {
-		filename: './nv-sessions.sqlite'
-	}
+        client: 'sqlite3',
+        connection: {
+                filename: './nv-sessions.sqlite'
+        },
+        useNullAsDefault: true
 };
 
 // Application env config
@@ -49,22 +51,25 @@ config.env = process.env.ENV || 'production';
 config.sessionSecret = process.env.SECRET || '1234567890ABCDEF';
 
 // Read and write settings
-config.readHosts = function(db, callback){
-	var query = db('hosts')
-		.join('groups', 'hosts.idGroup', '=', 'groups.idGroup', 'left')
-		.select('hosts.idHost', 'hosts.Name', 'hosts.Url', 'groups.Name AS GroupName');
+config.hosts = {};
 
-	query.exec(function(err, data){
-		var hosts = {};
-		for (var host in data) {
-			hosts[data[host].idHost] = data[host];
-		}
-		config.hosts = hosts;
-		// Call the callback passed
-		if (callback) {
-			callback();
-		}
-	});
+config.readHosts = async function(db){
+        try {
+                const data = await db('hosts')
+                        .leftJoin('groups', 'hosts.idGroup', 'groups.idGroup')
+                        .select('hosts.idHost', 'hosts.Name', 'hosts.Url', 'groups.Name AS GroupName');
+
+                const hosts = {};
+                for (const host of data) {
+                        hosts[host.idHost] = host;
+                }
+                config.hosts = hosts;
+                return hosts;
+        } catch (err) {
+                console.error('Failed to read hosts from database', err);
+                config.hosts = {};
+                throw err;
+        }
 };
 
 module.exports = config;
