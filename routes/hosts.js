@@ -3,97 +3,86 @@
  */
 
 exports.hosts = function(params) {
-	var config = params.config;
-	var db = params.db;
-	return function(req, res) {
+        return async function(req, res, next) {
 
-		if (!req.session.loggedIn) {
-			res.redirect('/login');
-		}
-		if (req.session.user.Role != 'Admin') {
-			res.redirect('/dashboard');
-		}
+                if (!req.session.loggedIn) {
+                        return res.redirect('/login');
+                }
+                if (req.session.user.Role != 'Admin') {
+                        return res.redirect('/dashboard');
+                }
 
-		if (req.body.delete !== undefined) {
-			if (req.params.idHost) {
-				params.db('hosts').delete()
-				.where('idHost', req.params.idHost)
-				.exec(function() {
-					params.config.readHosts(params.db, function(){
-						res.redirect('/hosts');
-					});
-				});
-			}
-		} else if (req.body.submit !== undefined) {
-			if (req.params.idHost == 'new') {
-				params.db('hosts').insert({
-					Name: req.body.name,
-					Url: req.body.url,
-					idGroup: req.body.group,
-				}, 'idHost').exec(function(err, insertId){
-					params.config.readHosts(params.db, function(){
-						if (err !== null) {
-							console.log(err);
-						}
-						res.redirect('/hosts');
-					});
-				});
-			} else {
-				var info = {
-					Name: req.body.name,
-					Url: req.body.url,
-					idGroup: req.body.group !== 'null' ? req.body.group : 0
-				};
+                try {
+                        if (req.body.delete !== undefined && req.params.idHost) {
+                                await params.db('hosts')
+                                        .where('idHost', req.params.idHost)
+                                        .del();
+                                await params.config.readHosts(params.db);
+                                return res.redirect('/hosts');
+                        } else if (req.body.submit !== undefined && req.params.idHost) {
+                                const rawGroup = req.body.group;
+                                const parsedGroup = rawGroup && rawGroup !== 'null' ? Number(rawGroup) : null;
+                                const groupId = Number.isNaN(parsedGroup) ? null : parsedGroup;
 
-				console.log(info);
+                                if (req.params.idHost === 'new') {
+                                        await params.db('hosts').insert({
+                                                Name: req.body.name,
+                                                Url: req.body.url,
+                                                idGroup: groupId
+                                        });
+                                } else {
+                                        await params.db('hosts')
+                                                .where('idHost', req.params.idHost)
+                                                .update({
+                                                        Name: req.body.name,
+                                                        Url: req.body.url,
+                                                        idGroup: groupId
+                                                });
+                                }
 
-				params.db('hosts').update(info)
-				.where('idHost', req.params.idHost)
-				.exec(function() {
-					params.config.readHosts(params.db, function(){
-						res.redirect('/hosts');
-					});
-				});
-			}
-		} else {
-			var qry = params.db('hosts');
+                                await params.config.readHosts(params.db);
+                                return res.redirect('/hosts');
+                        }
 
-			if (req.params.idHost) {
-				if (req.params.idHost == 'new') {
-					qry = params.db('groups').select('idGroup', 'Name');
-					qry.exec(function(err, groups){
-						res.render('edit_host', {
-							title: 'Nodervisor - New Host',
-							host: null,
-							groups: groups,
-							session: req.session
-						});
-					});
-				} else {
-					qry.where('idHost', req.params.idHost)
-					.exec(function(err, host){
-						qry = params.db('groups').select('idGroup', 'Name');
-						qry.exec(function(err, groups){
-							res.render('edit_host', {
-								title: 'Nodervisor - Edit Host',
-								host: host[0],
-								groups: groups,
-								session: req.session
-							});
-						});
-					});
-				}
-			} else {
-				qry.join('groups', 'hosts.idGroup', '=', 'groups.idGroup', 'left')
-				.select('hosts.idHost', 'hosts.Name', 'hosts.Url', 'groups.Name AS GroupName')
-				.exec(function(err, hosts){
-					res.render('hosts', {
-						title: 'Nodervisor - Hosts',
-						hosts: hosts,
-						session: req.session
-					});
-				});
-			}
-		}
-	};
+                        if (req.params.idHost) {
+                                if (req.params.idHost === 'new') {
+                                        const groups = await params.db('groups').select('idGroup', 'Name');
+                                        return res.render('edit_host', {
+                                                title: 'Nodervisor - New Host',
+                                                host: null,
+                                                groups: groups,
+                                                session: req.session
+                                        });
+                                }
+
+                                const host = await params.db('hosts')
+                                        .where('idHost', req.params.idHost)
+                                        .first();
+
+                                if (!host) {
+                                        return res.redirect('/hosts');
+                                }
+
+                                const groups = await params.db('groups').select('idGroup', 'Name');
+                                return res.render('edit_host', {
+                                        title: 'Nodervisor - Edit Host',
+                                        host: host,
+                                        groups: groups,
+                                        session: req.session
+                                });
+                        }
+
+                        const hosts = await params.db('hosts')
+                                .leftJoin('groups', 'hosts.idGroup', 'groups.idGroup')
+                                .select('hosts.idHost', 'hosts.Name', 'hosts.Url', 'groups.Name AS GroupName');
+
+                        return res.render('hosts', {
+                                title: 'Nodervisor - Hosts',
+                                hosts: hosts,
+                                session: req.session
+                        });
+                } catch (err) {
+                        return next(err);
+                }
+        };
 };

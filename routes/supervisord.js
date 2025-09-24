@@ -3,17 +3,19 @@
  */
 
 exports.supervisord = function(params) {
-	return function(req, res) {
+        return function(req, res) {
 
-		if (!req.session.loggedIn) {
-			res.redirect('/login');
-		} else if (req.session.user.Role != 'Admin') {
-			res.redirect('/dashboard');
-		}
+                if (!req.session.loggedIn) {
+                        return res.redirect('/login');
+                }
 
-		res.render('supervisord', {
-			title: 'Nodervisor - All Hosts',
-			session: req.session
-		});
-	};
+                if (req.session.user.Role != 'Admin') {
+                        return res.redirect('/dashboard');
+                }
+
+                return res.render('supervisord', {
+                        title: 'Nodervisor - All Hosts',
+                        session: req.session
+                });
+        };
 };

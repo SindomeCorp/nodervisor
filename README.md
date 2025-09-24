@@ -5,7 +5,7 @@ A Supervisord manager in node.js. Nodervisor provides a real-time web dashboard 
 
 ### Requirements
 
-- Node.js
+- Node.js 22 or newer
 - Supervisord
 - NPM
 

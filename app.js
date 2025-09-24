@@ -1,69 +1,81 @@
 
-/**
- * Declare Module dependencies
- */
+const express = require('express');
+const path = require('path');
+const favicon = require('serve-favicon');
+const morgan = require('morgan');
+const methodOverride = require('method-override');
+const cookieParser = require('cookie-parser');
+const session = require('express-session');
+const { ConnectSessionKnexStore } = require('connect-session-knex');
+const stylus = require('stylus');
+const errorhandler = require('errorhandler');
+const Knex = require('knex');
 
-var express = require('express'),
-	path = require('path'),
-	config = require('./config'),
-	schema = require('./sql/schema'),
-	sessionstore = require('connect-session-knex')(express);
+const config = require('./config');
+const schema = require('./sql/schema');
+const supervisordapi = require('supervisord');
 
-// Express App Server
-var app = express();
+const app = express();
 
-// Settings for all environments
 app.set('port', config.port);
 app.set('host', config.host);
-app.set('views', __dirname + '/views');
+app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.set('env', config.env);
 
-var Knex = require('knex');
-var db = Knex.initialize(config.db);
+const db = Knex(config.db);
+const knexsessions = Knex(config.sessionstore);
 
-schema.create(db);
-config.readHosts(db);
+const sessionStore = new ConnectSessionKnexStore({
+  knex: knexsessions,
+  tablename: 'sessions',
+  createTable: true
+});
 
-var knexsessions = Knex.initialize(config.sessionstore);
-
-/**
- * Set up Middleware
- */
-app.use(express.favicon());
-app.use(express.logger('dev'));
-app.use(express.bodyParser());
-app.use(express.methodOverride());
-app.use(express.cookieParser());
-app.use(express.session({
-	secret: config.sessionSecret,
-	cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 },
-	store: new sessionstore({knex: knexsessions, tablename: 'sessions'})
-}));
-app.use(app.router);
-app.use(require('stylus').middleware(__dirname + '/public'));
+app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
+app.use(morgan('dev'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(methodOverride('_method'));
+app.use(cookieParser());
+app.use(
+  session({
+    secret: config.sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 },
+    store: sessionStore
+  })
+);
+app.use(stylus.middleware(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Middleware for Dev Env only
-if ('development' == app.get('env')) {
-  app.use(express.errorHandler());
+if (app.get('env') === 'development') {
+  app.use(errorhandler());
 }
 
-var supervisordapi = require('supervisord');
-
-/**
- * Set routes
- */
-var routes = require('./routes')({
-	'app': app,
-	'config': config,
-	'supervisordapi': supervisordapi,
-	'db': db
+require('./routes')({
+  app,
+  config,
+  supervisordapi,
+  db
 });
 
-/**
- * Start Express Server
- */
-app.listen(app.get('port'), app.get('host'), function(){
-	console.log('Nodervisor launched on ' + app.get('host') + ':' + app.get('port'));
-});
+const start = async () => {
+  try {
+    await schema.create(db);
+    await config.readHosts(db);
+    app.listen(app.get('port'), app.get('host'), () => {
+      console.log(
+        `Nodervisor launched on ${app.get('host')}:${app.get('port')}`
+      );
+    });
+  } catch (err) {
+    console.error('Failed to start Nodervisor', err);
+    process.exit(1);
+  }
+};
+
+start();
+
+module.exports = app;
