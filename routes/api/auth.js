@@ -10,8 +10,11 @@ import { ServiceError } from '../../services/errors.js';
 export function createAuthApi(context) {
   const router = Router();
   const {
+    config,
     data: { users: userRepository }
   } = context;
+  const sessionCookieName = config?.session?.name ?? 'connect.sid';
+  const sessionCookieConfig = config?.session?.cookie;
 
   const loginLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -87,7 +90,7 @@ export function createAuthApi(context) {
         next(err);
         return;
       }
-      res.clearCookie('connect.sid');
+      res.clearCookie(sessionCookieName, buildCookieOptions(sessionCookieConfig));
       res.json({ status: 'success', data: { user: null } });
     });
   });
@@ -140,6 +143,26 @@ export function createAuthApi(context) {
   });
 
   return router;
+}
+
+function buildCookieOptions(cookieConfig) {
+  const { path = '/', domain, sameSite, secure, httpOnly } = cookieConfig ?? {};
+  const options = { path };
+
+  if (domain !== undefined) {
+    options.domain = domain;
+  }
+  if (sameSite !== undefined) {
+    options.sameSite = sameSite;
+  }
+  if (secure !== undefined) {
+    options.secure = secure;
+  }
+  if (httpOnly !== undefined) {
+    options.httpOnly = httpOnly;
+  }
+
+  return options;
 }
 
 function handleError(res, err) {

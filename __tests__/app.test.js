@@ -389,6 +389,31 @@ describe('Nodervisor application', () => {
     });
   });
 
+  it('destroys the session and clears the configured cookie on logout', async () => {
+    const { app } = await createTestApp();
+    const agent = request.agent(app);
+
+    await login(agent);
+
+    const response = await postWithCsrf(agent, '/api/auth/logout');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ status: 'success', data: { user: null } });
+
+    const cookies = response.headers['set-cookie'] ?? [];
+    expect(cookies.some((cookie) => cookie.startsWith('test.sid=;'))).toBe(true);
+
+    const sessionResponse = await agent.get('/api/auth/session');
+    expect(sessionResponse.status).toBe(200);
+    expect(sessionResponse.body).toEqual({
+      status: 'success',
+      data: {
+        user: null,
+        csrfToken: expect.any(String)
+      }
+    });
+  });
+
   it('returns hosts via the JSON API', async () => {
     const { app, hostRepository } = await createTestApp();
     const agent = request.agent(app);
