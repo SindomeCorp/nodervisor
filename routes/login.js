@@ -14,7 +14,9 @@ import { isSessionAuthenticated } from '../server/session.js';
  * @returns {import('../server/types.js').RequestHandler}
  */
 export function login(context) {
-  const { db } = context;
+  const {
+    data: { users: userRepository }
+  } = context;
   return async function (req, res, next) {
     try {
       if (isSessionAuthenticated(req.session)) {
@@ -23,16 +25,16 @@ export function login(context) {
 
       if (req.body.submit !== undefined) {
         const email = req.body.email;
-        const users = await db('users').where('Email', email);
+        const userRecord = await userRepository.findByEmail(email);
 
         let error = 'Password failed';
-        const user = users[0];
 
-        if (user) {
-          const passwordMatch = await bcrypt.compare(req.body.password, user.Password);
+        if (userRecord) {
+          const passwordMatch = await bcrypt.compare(req.body.password, userRecord.passwordHash);
           if (passwordMatch) {
             const session = /** @type {RequestSession} */ (req.session);
             session.loggedIn = true;
+            const { passwordHash, ...user } = userRecord;
             session.user = user;
             return res.redirect('/');
           }

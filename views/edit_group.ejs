@@ -6,14 +6,14 @@
             <div class="main clearfix">
                 <article>
 
-                    <h2><%= (group === null) ? 'New Group' : 'Edit ' + group.Name %></h2>
+                    <h2><%= (group === null) ? 'New Group' : 'Edit ' + group.name %></h2>
                     <hr>
                     <form method="post" role="form">
                         <div class="row" style="margin-left: -15px;">
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="inputName" class="control-label">Name</label>
-                                    <input type="text" name="name" class="form-control" id="inputName" placeholder="Name"  value="<%= (group === null) ? '' : group.Name %>">
+                                    <input type="text" name="name" class="form-control" id="inputName" placeholder="Name"  value="<%= (group === null) ? '' : group.name %>">
                                 </div>
                                 <div class="form-group">
                                     <button type="submit" name="submit" class="btn btn-success">Save</button>

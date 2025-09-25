@@ -75,27 +75,39 @@ async function createTestApp({ userRole = 'Admin' } = {}) {
   };
 
   const userRecord = {
-    idUser: 1,
-    Email: TEST_EMAIL,
-    Password: hashedPassword,
-    Role: userRole
+    id: 1,
+    name: 'Admin User',
+    email: TEST_EMAIL,
+    role: userRole,
+    passwordHash: hashedPassword
   };
 
-  const usersWhere = jest.fn(async (column, value) => {
-    if (column === 'Email' && value === userRecord.Email) {
-      return [userRecord];
-    }
+  const userRepository = {
+    findByEmail: jest.fn(async (email) => (email === userRecord.email ? userRecord : null)),
+    listUsers: jest.fn(async () => []),
+    getUserById: jest.fn(async () => null),
+    createUser: jest.fn(),
+    updateUser: jest.fn(),
+    deleteUser: jest.fn()
+  };
 
-    return [];
-  });
+  const hostRepository = {
+    listHosts: jest.fn(async () => []),
+    getHostById: jest.fn(async () => null),
+    createHost: jest.fn(),
+    updateHost: jest.fn(),
+    deleteHost: jest.fn()
+  };
 
-  const db = jest.fn((table) => {
-    if (table === 'users') {
-      return { where: usersWhere };
-    }
+  const groupRepository = {
+    listGroups: jest.fn(async () => []),
+    getGroupById: jest.fn(async () => null),
+    createGroup: jest.fn(),
+    updateGroup: jest.fn(),
+    deleteGroup: jest.fn()
+  };
 
-    throw new Error(`Unexpected table query: ${table}`);
-  });
+  const db = jest.fn();
 
   const client = createMockSupervisordClient();
   const supervisordapi = {
@@ -172,14 +184,19 @@ async function createTestApp({ userRole = 'Admin' } = {}) {
     config,
     db,
     supervisordapi,
-    sessionStore: new session.MemoryStore()
+    sessionStore: new session.MemoryStore(),
+    data: {
+      hosts: hostRepository,
+      groups: groupRepository,
+      users: userRepository
+    }
   };
 
   const app = createApp(context);
   app.engine('ejs', (_filePath, _options, callback) => callback(null, ''));
   app.set('view engine', 'ejs');
 
-  return { app, client, host, userRecord, usersWhere };
+  return { app, client, host, userRecord, userRepository };
 }
 
 async function login(agent, email = TEST_EMAIL, password = TEST_PASSWORD) {

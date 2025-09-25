@@ -5,8 +5,8 @@
 	        <nav>
 	            <ul>
 	                <%
-	                	if (typeof session.user != 'undefined') {
-	                		if (session.user.Role == 'Admin') {
+                                if (typeof session.user != 'undefined') {
+                                        if (session.user.role == 'Admin') {
                 			%>
                                 <li><a href="/">Home</a></li>
                                 <li><a href="/hosts">Hosts</a></li>

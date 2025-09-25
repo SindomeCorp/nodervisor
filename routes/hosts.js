@@ -11,46 +11,51 @@ import { ensureAdminRequest } from '../server/session.js';
  * @returns {import('../server/types.js').RequestHandler}
  */
 export function hosts(context) {
-  const { db, config } = context;
+  const { config, data } = context;
+  const hostRepository = data.hosts;
+  const groupRepository = data.groups;
   return async function (req, res, next) {
     if (!ensureAdminRequest(req, res)) {
       return;
     }
 
     try {
-      if (req.body.delete !== undefined && req.params.idHost) {
-        await db('hosts').where('idHost', req.params.idHost).del();
-        await config.readHosts(db);
+      const { idHost } = req.params;
+      const isNewRecord = idHost === 'new';
+      const parsedHostId = Number(idHost);
+      const hostId = !idHost || isNewRecord || Number.isNaN(parsedHostId) ? null : parsedHostId;
+
+      if (req.body.delete !== undefined && hostId !== null) {
+        await hostRepository.deleteHost(hostId);
+        await config.refreshHosts(context.db);
         return res.redirect('/hosts');
       }
-      if (req.body.submit !== undefined && req.params.idHost) {
+
+      if (req.body.submit !== undefined && idHost) {
         const rawGroup = req.body.group;
         const parsedGroup = rawGroup && rawGroup !== 'null' ? Number(rawGroup) : null;
         const groupId = Number.isNaN(parsedGroup) ? null : parsedGroup;
 
-        if (req.params.idHost === 'new') {
-          await db('hosts').insert({
-            Name: req.body.name,
-            Url: req.body.url,
-            idGroup: groupId
-          });
-        } else {
-          await db('hosts')
-            .where('idHost', req.params.idHost)
-            .update({
-              Name: req.body.name,
-              Url: req.body.url,
-              idGroup: groupId
-            });
+        const payload = {
+          name: req.body.name,
+          url: req.body.url,
+          groupId
+        };
+
+        if (isNewRecord) {
+          await hostRepository.createHost(payload);
+        } else if (hostId !== null) {
+          await hostRepository.updateHost(hostId, payload);
         }
 
-        await config.readHosts(db);
+        await config.refreshHosts(context.db);
         return res.redirect('/hosts');
       }
 
-      if (req.params.idHost) {
-        if (req.params.idHost === 'new') {
-          const groups = await db('groups').select('idGroup', 'Name');
+      if (idHost) {
+        const groups = await groupRepository.listGroups();
+
+        if (isNewRecord) {
           return res.render('edit_host', {
             title: 'Nodervisor - New Host',
             host: null,
@@ -59,15 +64,16 @@ export function hosts(context) {
           });
         }
 
-        const host = await db('hosts')
-          .where('idHost', req.params.idHost)
-          .first();
+        if (hostId === null) {
+          return res.redirect('/hosts');
+        }
+
+        const host = await hostRepository.getHostById(hostId);
 
         if (!host) {
           return res.redirect('/hosts');
         }
 
-        const groups = await db('groups').select('idGroup', 'Name');
         return res.render('edit_host', {
           title: 'Nodervisor - Edit Host',
           host,
@@ -76,9 +82,7 @@ export function hosts(context) {
         });
       }
 
-      const hosts = await db('hosts')
-        .leftJoin('groups', 'hosts.idGroup', 'groups.idGroup')
-        .select('hosts.idHost', 'hosts.Name', 'hosts.Url', 'groups.Name AS GroupName');
+      const hosts = await hostRepository.listHosts();
 
       return res.render('hosts', {
         title: 'Nodervisor - Hosts',
