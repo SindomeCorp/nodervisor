@@ -1,4 +1,5 @@
 import { inspect } from 'util';
+import { EventEmitter } from 'node:events';
 import pino from 'pino';
 
 import { ServiceError } from './errors.js';
@@ -96,6 +97,93 @@ export class SupervisordService {
     );
 
     return Object.fromEntries(results);
+  }
+
+  createProcessStream({ intervalMs = 5000, signal } = {}) {
+    const emitter = new EventEmitter();
+    let closed = false;
+    let timer;
+    let previousState = new Map();
+
+    const normalizedInterval = Number.isFinite(intervalMs) && intervalMs > 0 ? intervalMs : 5000;
+
+    const stop = () => {
+      if (closed) {
+        return;
+      }
+      closed = true;
+      if (timer) {
+        clearTimeout(timer);
+      }
+      if (signal) {
+        signal.removeEventListener('abort', stop);
+      }
+    };
+
+    const scheduleNext = () => {
+      if (closed) {
+        return;
+      }
+      timer = setTimeout(tick, normalizedInterval);
+      if (typeof timer?.unref === 'function') {
+        timer.unref();
+      }
+    };
+
+    const tick = async () => {
+      if (closed) {
+        return;
+      }
+
+      try {
+        const snapshot = await this.fetchAllProcessInfo();
+        if (closed) {
+          return;
+        }
+
+        const nextState = toHostStateMap(snapshot);
+
+        if (previousState.size === 0) {
+          previousState = nextState;
+          emitter.emit('snapshot', snapshot);
+        } else {
+          const diff = diffHostState(previousState, nextState);
+          previousState = nextState;
+
+          if (diff.changed.length > 0 || diff.removed.length > 0) {
+            const updates = Object.fromEntries(
+              diff.changed
+                .map((hostId) => [hostId, snapshot?.[hostId]])
+                .filter(([, entry]) => entry !== undefined)
+            );
+
+            emitter.emit('update', { updates, removed: diff.removed });
+          }
+        }
+      } catch (err) {
+        if (!closed) {
+          emitter.emit('error', err);
+        }
+      } finally {
+        scheduleNext();
+      }
+    };
+
+    if (signal) {
+      if (signal.aborted) {
+        stop();
+        return emitter;
+      }
+
+      signal.addEventListener('abort', stop);
+    }
+
+    emitter.close = stop;
+
+    // Kick off the initial poll immediately.
+    tick();
+
+    return emitter;
   }
 
   async getProcessLog({ hostId, processName, type, offset = 0, length = 16384 }) {
@@ -263,4 +351,122 @@ export class SupervisordService {
 
     return payload;
   }
+}
+
+function toHostStateMap(rawHosts) {
+  const map = new Map();
+  if (!rawHosts || typeof rawHosts !== 'object') {
+    return map;
+  }
+
+  for (const [hostId, entry] of Object.entries(rawHosts)) {
+    map.set(String(hostId), computeHostSignature(entry));
+  }
+
+  return map;
+}
+
+function diffHostState(previous, next) {
+  const changed = [];
+  const removed = [];
+
+  for (const [hostId, signature] of next.entries()) {
+    if (!previous.has(hostId) || previous.get(hostId) !== signature) {
+      changed.push(hostId);
+    }
+  }
+
+  for (const hostId of previous.keys()) {
+    if (!next.has(hostId)) {
+      removed.push(hostId);
+    }
+  }
+
+  return { changed, removed };
+}
+
+function computeHostSignature(entry) {
+  if (!entry || typeof entry !== 'object') {
+    return 'null';
+  }
+
+  const normalized = {};
+
+  if (entry.host !== undefined) {
+    normalized.host = normalizeValue(entry.host);
+  }
+
+  if (entry.data !== undefined) {
+    normalized.data = Array.isArray(entry.data)
+      ? normalizeProcessList(entry.data)
+      : normalizeValue(entry.data);
+  }
+
+  if (entry.error !== undefined) {
+    normalized.error = normalizeValue(entry.error);
+  }
+
+  return stableStringify(normalized);
+}
+
+function normalizeProcessList(processes) {
+  return processes
+    .map((process) => normalizeValue(process))
+    .sort((a, b) => {
+      const groupA = extractComparableField(a, ['group', 'Group']);
+      const groupB = extractComparableField(b, ['group', 'Group']);
+      if (groupA !== groupB) {
+        return groupA.localeCompare(groupB);
+      }
+
+      const nameA = extractComparableField(a, ['name', 'processname', 'Name']);
+      const nameB = extractComparableField(b, ['name', 'processname', 'Name']);
+      return nameA.localeCompare(nameB);
+    });
+}
+
+function extractComparableField(value, candidates) {
+  if (!value || typeof value !== 'object') {
+    return '';
+  }
+
+  for (const field of candidates) {
+    const candidate = value[field];
+    if (candidate !== undefined && candidate !== null) {
+      return String(candidate);
+    }
+  }
+
+  return '';
+}
+
+function normalizeValue(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeValue(item));
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, normalizeValue(value[key])])
+    );
+  }
+
+  return value;
+}
+
+function stableStringify(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(',')}]`;
+  }
+
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
+      .join(',')}}`;
+  }
+
+  return JSON.stringify(value);
 }

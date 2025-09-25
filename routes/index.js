@@ -86,6 +86,83 @@ export function createRouter(context) {
     })
   );
 
+  router.get(
+    '/api/v1/supervisors/stream',
+    handleRoute((req, res) => {
+      assertSessionAuthenticated(req.session);
+
+      res.set({
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no'
+      });
+
+      if (typeof res.flushHeaders === 'function') {
+        res.flushHeaders();
+      }
+
+      res.write(': stream-start\n\n');
+
+      const interval = parseNumber(req.query.interval, 5000);
+      const abortController = new AbortController();
+      const stream = supervisordService.createProcessStream({
+        intervalMs: interval,
+        signal: abortController.signal
+      });
+
+      const heartbeat = setInterval(() => {
+        try {
+          res.write(': ping\n\n');
+        } catch (err) {
+          abortController.abort();
+        }
+      }, 15000);
+      if (typeof heartbeat?.unref === 'function') {
+        heartbeat.unref();
+      }
+
+      const writeEvent = (event, payload) => {
+        try {
+          res.write(`event: ${event}\n`);
+          res.write(`data: ${JSON.stringify(payload)}\n\n`);
+        } catch (err) {
+          abortController.abort();
+        }
+      };
+
+      stream.on('snapshot', (data) => {
+        writeEvent('snapshot', data);
+      });
+
+      stream.on('update', (payload) => {
+        const sanitized = {
+          updates: payload?.updates ?? {},
+          removed: Array.isArray(payload?.removed) ? payload.removed : []
+        };
+
+        if (Object.keys(sanitized.updates).length === 0 && sanitized.removed.length === 0) {
+          return;
+        }
+
+        writeEvent('update', sanitized);
+      });
+
+      stream.on('error', (err) => {
+        writeEvent('error', { message: err?.message ?? 'Stream error' });
+      });
+
+      const cleanup = () => {
+        abortController.abort();
+        stream.removeAllListeners();
+        clearInterval(heartbeat);
+      };
+
+      req.on('close', cleanup);
+      req.on('error', cleanup);
+    })
+  );
+
   router.post(
     '/api/v1/supervisors/control',
     handleRoute(async (req, res) => {

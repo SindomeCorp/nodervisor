@@ -1,3 +1,4 @@
+import http from 'node:http';
 import path from 'node:path';
 
 import request from 'supertest';
@@ -16,9 +17,17 @@ beforeAll(async () => {
   hashedPassword = await bcrypt.hash(TEST_PASSWORD, 4);
 });
 
-function createMockSupervisordClient() {
+function createMockSupervisordClient({ processSnapshots } = {}) {
+  const snapshots =
+    Array.isArray(processSnapshots) && processSnapshots.length > 0
+      ? processSnapshots
+      : [[{ name: 'app', group: 'app', state: 1 }]];
+  let snapshotIndex = 0;
+
   const getAllProcessInfo = jest.fn((callback) => {
-    callback(null, [{ name: 'app', group: 'app', state: 1 }]);
+    const snapshot = snapshotIndex < snapshots.length ? snapshots[snapshotIndex] : snapshots.at(-1);
+    snapshotIndex += 1;
+    callback(null, snapshot);
   });
   const stopProcess = jest.fn((_processName, callback) => {
     callback(null, true);
@@ -64,7 +73,7 @@ function createMockSupervisordClient() {
   };
 }
 
-async function createTestApp({ userRole = 'Admin' } = {}) {
+async function createTestApp({ userRole = 'Admin', supervisordClientOptions } = {}) {
   const host = {
     idHost: 'alpha',
     idGroup: null,
@@ -109,7 +118,7 @@ async function createTestApp({ userRole = 'Admin' } = {}) {
 
   const db = jest.fn();
 
-  const client = createMockSupervisordClient();
+  const client = createMockSupervisordClient(supervisordClientOptions);
   const supervisordapi = {
     connect: jest.fn((url) => {
       if (url !== host.Url) {
@@ -451,5 +460,142 @@ describe('Nodervisor application', () => {
     const payload = userRepository.createUser.mock.calls[0][0];
     expect(payload).toMatchObject({ name: 'CLI User', email: 'cli@example.test', role: 'User' });
     expect(await bcrypt.compare('temporary', payload.passwordHash)).toBe(true);
+  });
+
+  it('streams incremental supervisor updates', async () => {
+    const processSnapshots = [
+      [{ name: 'app', group: 'app', state: 1 }],
+      [{ name: 'app', group: 'app', state: 0 }]
+    ];
+
+    const { app, host } = await createTestApp({
+      supervisordClientOptions: { processSnapshots }
+    });
+
+    const agent = request.agent(app);
+    const loginResponse = await login(agent);
+
+    const setCookieHeader = loginResponse.headers['set-cookie'];
+    const sessionCookie = Array.isArray(setCookieHeader)
+      ? setCookieHeader.find((value) => value.startsWith('test.sid='))
+      : setCookieHeader;
+
+    expect(typeof sessionCookie).toBe('string');
+    const cookieHeader = sessionCookie.split(';')[0];
+
+    const server = app.listen(0);
+    await new Promise((resolve) => server.once('listening', resolve));
+
+    const { port } = server.address();
+    const events = [];
+
+    try {
+      await new Promise((resolve, reject) => {
+        let resolved = false;
+
+        const req = http.request(
+          {
+            hostname: '127.0.0.1',
+            port,
+            path: '/api/v1/supervisors/stream?interval=20',
+            headers: {
+              Accept: 'text/event-stream',
+              Cookie: cookieHeader
+            },
+            method: 'GET'
+          },
+          (res) => {
+            res.setEncoding('utf8');
+            let buffer = '';
+
+            const finalize = () => {
+              if (!resolved) {
+                resolved = true;
+                resolve();
+              }
+            };
+
+            res.on('data', (chunk) => {
+              buffer += chunk;
+              let separatorIndex = buffer.indexOf('\n\n');
+              while (separatorIndex !== -1) {
+                const rawEvent = buffer.slice(0, separatorIndex);
+                buffer = buffer.slice(separatorIndex + 2);
+                separatorIndex = buffer.indexOf('\n\n');
+
+                if (!rawEvent) {
+                  continue;
+                }
+
+                const lines = rawEvent.split('\n');
+                let eventType = 'message';
+                const dataLines = [];
+
+                for (const line of lines) {
+                  if (line.startsWith('event:')) {
+                    eventType = line.slice(6).trim();
+                  } else if (line.startsWith('data:')) {
+                    dataLines.push(line.slice(5).trim());
+                  }
+                }
+
+                if (dataLines.length === 0) {
+                  continue;
+                }
+
+                const dataPayload = dataLines.join('\n');
+                events.push({ event: eventType, data: dataPayload });
+
+                if (events.some((entry) => entry.event === 'snapshot') && events.some((entry) => entry.event === 'update')) {
+                  res.destroy();
+                  finalize();
+                  return;
+                }
+              }
+            });
+
+            res.on('close', finalize);
+            res.on('end', finalize);
+            res.on('error', (err) => {
+              if (!resolved) {
+                reject(err);
+              }
+            });
+          }
+        );
+
+        req.on('error', (err) => {
+          if (!resolved) {
+            reject(err);
+          }
+        });
+        req.end();
+      });
+
+      const snapshotEvent = events.find((entry) => entry.event === 'snapshot');
+      expect(snapshotEvent).toBeDefined();
+      const snapshotData = JSON.parse(snapshotEvent.data);
+      expect(snapshotData).toEqual({
+        [host.idHost]: {
+          host,
+          data: processSnapshots[0]
+        }
+      });
+
+      const updateEvent = events.find((entry) => entry.event === 'update');
+      expect(updateEvent).toBeDefined();
+      const updateData = JSON.parse(updateEvent.data);
+      expect(updateData).toEqual({
+        updates: {
+          [host.idHost]: {
+            host,
+            data: processSnapshots[1]
+          }
+        },
+        removed: []
+      });
+    } finally {
+      server.close();
+    }
   });
 });
