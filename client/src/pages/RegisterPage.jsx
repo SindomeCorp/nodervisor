@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useSession } from '../App.jsx';
 import AuthPageLayout from './AuthPageLayout.jsx';
+import ui from '../styles/ui.module.css';
 
 export default function RegisterPage() {
   const { register } = useSession();
@@ -57,19 +58,19 @@ export default function RegisterPage() {
       }
     >
       {error && (
-        <div className="alert alert-danger" role="alert">
+        <div className={`${ui.alert} ${ui.alertError}`} role="alert">
           {error}
         </div>
       )}
       <form onSubmit={handleSubmit} noValidate>
-        <div className="mb-3">
-          <label className="form-label" htmlFor="register-name">
+        <div className={ui.formField}>
+          <label className={ui.formLabel} htmlFor="register-name">
             Name
           </label>
           <input
             id="register-name"
             type="text"
-            className="form-control"
+            className={ui.formControl}
             value={name}
             onChange={(event) => setName(event.target.value)}
             autoComplete="name"
@@ -78,14 +79,14 @@ export default function RegisterPage() {
             disabled={submitting}
           />
         </div>
-        <div className="mb-3">
-          <label className="form-label" htmlFor="register-email">
+        <div className={ui.formField}>
+          <label className={ui.formLabel} htmlFor="register-email">
             Email address
           </label>
           <input
             id="register-email"
             type="email"
-            className="form-control"
+            className={ui.formControl}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
@@ -93,14 +94,14 @@ export default function RegisterPage() {
             disabled={submitting}
           />
         </div>
-        <div className="mb-3">
-          <label className="form-label" htmlFor="register-password">
+        <div className={ui.formField}>
+          <label className={ui.formLabel} htmlFor="register-password">
             Password
           </label>
           <input
             id="register-password"
             type="password"
-            className="form-control"
+            className={ui.formControl}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             autoComplete="new-password"
@@ -108,14 +109,14 @@ export default function RegisterPage() {
             disabled={submitting}
           />
         </div>
-        <div className="mb-4">
-          <label className="form-label" htmlFor="register-confirm">
+        <div className={ui.formField}>
+          <label className={ui.formLabel} htmlFor="register-confirm">
             Confirm password
           </label>
           <input
             id="register-confirm"
             type="password"
-            className="form-control"
+            className={ui.formControl}
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
             autoComplete="new-password"
@@ -123,7 +124,11 @@ export default function RegisterPage() {
             disabled={submitting}
           />
         </div>
-        <button type="submit" className="btn btn-success w-100" disabled={submitting}>
+        <button
+          type="submit"
+          className={`${ui.button} ${ui.buttonSuccess} ${ui.buttonBlock}`}
+          disabled={submitting}
+        >
           {submitting ? 'Creating account…' : 'Create account'}
         </button>
       </form>

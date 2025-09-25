@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { requestJson } from '../apiClient.js';
+import ui from '../styles/ui.module.css';
 
 export default function HostsListPage() {
   const [hosts, setHosts] = useState([]);
@@ -52,28 +53,30 @@ export default function HostsListPage() {
 
   return (
     <section aria-labelledby="hosts-heading">
-      <header className="d-flex justify-content-between align-items-center mb-3">
-        <h2 id="hosts-heading">Hosts</h2>
-        <Link className="btn btn-primary" to="/hosts/new">
+      <header className={ui.pageHeader}>
+        <h2 id="hosts-heading" className={ui.pageTitle}>
+          Hosts
+        </h2>
+        <Link className={`${ui.button} ${ui.buttonPrimary}`} to="/hosts/new">
           Add host
         </Link>
       </header>
       {loading && <p>Loading hosts…</p>}
       {error && (
-        <div className="alert alert-danger" role="alert">
+        <div className={`${ui.alert} ${ui.alertError}`} role="alert">
           {error}
         </div>
       )}
       {!loading && hosts.length === 0 && <p>No hosts configured.</p>}
       {hosts.length > 0 && (
-        <div className="table-responsive">
-          <table className="table table-striped">
+        <div className={ui.tableWrapper}>
+          <table className={ui.table}>
             <thead>
               <tr>
                 <th scope="col">Name</th>
                 <th scope="col">URL</th>
                 <th scope="col">Group</th>
-                <th scope="col" className="text-end">
+                <th scope="col" className={ui.tableCellNumeric}>
                   Actions
                 </th>
               </tr>
@@ -88,12 +91,16 @@ export default function HostsListPage() {
                     </a>
                   </td>
                   <td>{host.groupName ?? '—'}</td>
-                  <td className="text-end">
-                    <div className="btn-group" role="group">
-                      <Link className="btn btn-secondary" to={`/hosts/${host.id}`}>
+                  <td className={ui.tableCellNumeric}>
+                    <div className={ui.buttonGroup} role="group">
+                      <Link className={`${ui.button} ${ui.buttonSecondary}`} to={`/hosts/${host.id}`}>
                         Edit
                       </Link>
-                      <button type="button" className="btn btn-danger" onClick={() => handleDelete(host.id)}>
+                      <button
+                        type="button"
+                        className={`${ui.button} ${ui.buttonDanger}`}
+                        onClick={() => handleDelete(host.id)}
+                      >
                         Delete
                       </button>
                     </div>

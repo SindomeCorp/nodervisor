@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { requestJson } from '../apiClient.js';
+import ui from '../styles/ui.module.css';
 
 export default function GroupFormPage({ mode }) {
   const isEdit = mode === 'edit';
@@ -75,37 +76,43 @@ export default function GroupFormPage({ mode }) {
 
   return (
     <section aria-labelledby="group-form-heading">
-      <header className="mb-3">
-        <h2 id="group-form-heading">{isEdit ? 'Edit group' : 'Add group'}</h2>
+      <header className={ui.sectionHeader}>
+        <h2 id="group-form-heading" className={ui.pageTitle}>
+          {isEdit ? 'Edit group' : 'Add group'}
+        </h2>
       </header>
       {loading ? (
         <p>Loading…</p>
       ) : (
         <form onSubmit={handleSubmit} noValidate>
           {error && (
-            <div className="alert alert-danger" role="alert">
+            <div className={`${ui.alert} ${ui.alertError}`} role="alert">
               {error}
             </div>
           )}
-          <div className="mb-3">
-            <label className="form-label" htmlFor="name">
+          <div className={ui.formField}>
+            <label className={ui.formLabel} htmlFor="name">
               Name
             </label>
             <input
               id="name"
               name="name"
               type="text"
-              className="form-control"
+              className={ui.formControl}
               value={name}
               onChange={(event) => setName(event.target.value)}
               required
             />
           </div>
-          <div className="d-flex gap-2">
-            <button type="submit" className="btn btn-primary" disabled={saving}>
+          <div className={ui.formActions}>
+            <button type="submit" className={`${ui.button} ${ui.buttonPrimary}`} disabled={saving}>
               {saving ? 'Saving…' : 'Save'}
             </button>
-            <button type="button" className="btn btn-secondary" onClick={() => navigate('/groups')}>
+            <button
+              type="button"
+              className={`${ui.button} ${ui.buttonSecondary}`}
+              onClick={() => navigate('/groups')}
+            >
               Cancel
             </button>
           </div>

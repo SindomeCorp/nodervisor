@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useSession } from '../App.jsx';
 import AuthPageLayout from './AuthPageLayout.jsx';
+import ui from '../styles/ui.module.css';
 
 export default function LoginPage() {
   const { login } = useSession();
@@ -44,19 +45,19 @@ export default function LoginPage() {
       }
     >
       {error && (
-        <div className="alert alert-danger" role="alert">
+        <div className={`${ui.alert} ${ui.alertError}`} role="alert">
           {error}
         </div>
       )}
       <form onSubmit={handleSubmit} noValidate>
-        <div className="mb-3">
-          <label className="form-label" htmlFor="login-email">
+        <div className={ui.formField}>
+          <label className={ui.formLabel} htmlFor="login-email">
             Email address
           </label>
           <input
             id="login-email"
             type="email"
-            className="form-control"
+            className={ui.formControl}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
@@ -65,14 +66,14 @@ export default function LoginPage() {
             disabled={submitting}
           />
         </div>
-        <div className="mb-4">
-          <label className="form-label" htmlFor="login-password">
+        <div className={ui.formField}>
+          <label className={ui.formLabel} htmlFor="login-password">
             Password
           </label>
           <input
             id="login-password"
             type="password"
-            className="form-control"
+            className={ui.formControl}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             autoComplete="current-password"
@@ -80,7 +81,11 @@ export default function LoginPage() {
             disabled={submitting}
           />
         </div>
-        <button type="submit" className="btn btn-primary w-100" disabled={submitting}>
+        <button
+          type="submit"
+          className={`${ui.button} ${ui.buttonPrimary} ${ui.buttonBlock}`}
+          disabled={submitting}
+        >
           {submitting ? 'Signing in…' : 'Sign in'}
         </button>
       </form>

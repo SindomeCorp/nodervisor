@@ -1,0 +1,243 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  border-radius: var(--nv-radius-sm);
+  padding: 0.55rem 1.25rem;
+  border: 1px solid transparent;
+  background-color: var(--nv-color-surface);
+  color: var(--nv-color-text);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  min-height: 2.5rem;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.buttonPrimary {
+  background-color: var(--nv-color-primary);
+  color: #ffffff;
+  box-shadow: var(--nv-shadow-sm);
+}
+
+.buttonPrimary:hover,
+.buttonPrimary:focus-visible {
+  background-color: var(--nv-color-primary-dark);
+}
+
+.buttonSecondary {
+  background-color: #e5ecf5;
+  color: var(--nv-color-secondary);
+  border-color: rgba(17, 63, 82, 0.2);
+}
+
+.buttonSecondary:hover,
+.buttonSecondary:focus-visible {
+  background-color: #d6e3ef;
+}
+
+.buttonDanger {
+  background-color: var(--nv-color-danger);
+  color: #ffffff;
+}
+
+.buttonDanger:hover,
+.buttonDanger:focus-visible {
+  background-color: #a42312;
+}
+
+.buttonSuccess {
+  background-color: var(--nv-color-success);
+  color: #ffffff;
+}
+
+.buttonSuccess:hover,
+.buttonSuccess:focus-visible {
+  background-color: #178a34;
+}
+
+.buttonGhost {
+  background-color: transparent;
+  color: inherit;
+  border-color: rgba(27, 30, 46, 0.12);
+}
+
+.buttonGhost:hover,
+.buttonGhost:focus-visible {
+  background-color: rgba(27, 30, 46, 0.06);
+}
+
+.buttonLink {
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.buttonBlock {
+  width: 100%;
+}
+
+.buttonGroup {
+  display: inline-flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.alert {
+  border-radius: var(--nv-radius-sm);
+  padding: 0.85rem 1rem;
+  font-weight: 500;
+  box-shadow: var(--nv-shadow-sm);
+  border: 1px solid transparent;
+}
+
+.alertError {
+  background-color: var(--nv-color-danger-surface);
+  color: #7f1d1d;
+  border-color: rgba(199, 46, 28, 0.2);
+}
+
+.textCenter {
+  text-align: center;
+}
+
+.textMuted {
+  color: var(--nv-color-text-muted);
+}
+
+.sectionHeader {
+  margin-bottom: 1.5rem;
+}
+
+.sectionHeaderLarge {
+  margin-bottom: 2rem;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.spinner {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  border: 0.35rem solid rgba(0, 116, 74, 0.18);
+  border-top-color: var(--nv-color-primary);
+  animation: spin 0.75s linear infinite;
+  display: block;
+  margin: 0 auto 1rem;
+}
+
+.loadingContainer {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 1rem;
+}
+
+.loadingContent {
+  text-align: center;
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.formLabel {
+  font-weight: 600;
+  color: var(--nv-color-secondary);
+}
+
+.formControl {
+  border-radius: var(--nv-radius-sm);
+  border: 1px solid var(--nv-color-border);
+  padding: 0.65rem 0.75rem;
+  background-color: #ffffff;
+  color: inherit;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.formControl:focus {
+  outline: 2px solid rgba(0, 116, 74, 0.25);
+  outline-offset: 2px;
+}
+
+.formError {
+  margin-top: 0.25rem;
+  color: var(--nv-color-danger);
+  font-size: 0.875rem;
+}
+
+.formText {
+  font-size: 0.875rem;
+  color: var(--nv-color-text-muted);
+}
+
+.formActions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+}
+
+.tableWrapper {
+  background-color: #ffffff;
+  border-radius: var(--nv-radius-sm);
+  box-shadow: var(--nv-shadow-sm);
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 560px;
+}
+
+.table thead {
+  background-color: rgba(17, 63, 82, 0.05);
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(17, 63, 82, 0.12);
+}
+
+.table tbody tr:nth-child(even) {
+  background-color: rgba(17, 63, 82, 0.04);
+}
+
+.tableCellNumeric {
+  text-align: right;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
