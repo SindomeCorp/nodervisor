@@ -161,7 +161,7 @@ When Nodervisor runs behind a reverse proxy it must trust the forwarded headers 
 TRUST_PROXY=1
 ```
 
-The value `1` tells Express to trust the first proxy hop, which is appropriate when Apache or Nginx is the only proxy in front of Nodervisor. If your traffic flows through multiple proxies (for example, a load balancer in front of Nginx), set `TRUST_PROXY` to the number of hops or use `TRUST_PROXY=true` to trust all proxies. Leave the variable unset (or set it to `false`) when clients connect directly without a reverse proxy.
+The value `1` tells Express to trust the first proxy hop, which is appropriate when Apache or Nginx is the only proxy in front of Nodervisor. If your traffic flows through multiple proxies (for example, a load balancer in front of Nginx), set `TRUST_PROXY` to the number of hops (any non-negative integer works) or use a textual boolean such as `TRUST_PROXY=true` or `TRUST_PROXY=on` to trust all proxies. Leave the variable unset (or set it to `false`, `no`, or `off`) when clients connect directly without a reverse proxy.
 
 ### Styling the dashboard
 

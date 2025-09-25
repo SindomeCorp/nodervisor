@@ -85,18 +85,18 @@ function trustProxyLike() {
         return undefined;
       }
 
+      const parsedNumber = Number(normalized);
+      if (Number.isInteger(parsedNumber) && parsedNumber >= 0) {
+        return parsedNumber;
+      }
+
       const lower = normalized.toLowerCase();
-      if (['true', '1', 'yes', 'y', 'on'].includes(lower)) {
+      if (['true', 'yes', 'y', 'on'].includes(lower)) {
         return true;
       }
 
-      if (['false', '0', 'no', 'n', 'off'].includes(lower)) {
+      if (['false', 'no', 'n', 'off'].includes(lower)) {
         return false;
-      }
-
-      const parsed = Number(normalized);
-      if (Number.isInteger(parsed) && parsed >= 0) {
-        return parsed;
       }
 
       ctx.addIssue({
