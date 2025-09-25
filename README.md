@@ -68,10 +68,10 @@ The session store uses the same connection details by default, but you can overr
     http://localhost:3000
 
   3. Log in using the default credentials of:
-  	<ul>
-  		<li>Email: admin@nodervisor</li>
-  		<li>Password: admin</li>
-	</ul>
+        <ul>
+                <li>Email: admin@nodervisor</li>
+                <li>Password: admin</li>
+        </ul>
 
   4. Navigate to the users page using the top menu. Change the admin credentials or add a new user and remove them.
 
@@ -82,6 +82,74 @@ The session store uses the same connection details by default, but you can overr
       port = *:9009 ;
 
   At this point, navigating back to the home page should show you a list of your hosts, and the processes running on them.
+
+### Running behind an Apache reverse proxy
+
+The Nodervisor server listens on port `3000` by default. To expose it securely behind Apache you can configure a reverse proxy. The steps below assume an Ubuntu/Debian host, but the same directives work on other distributions.
+
+1. **Enable the required Apache modules** (if they are not already enabled):
+
+       sudo a2enmod proxy proxy_http ssl headers
+       sudo systemctl reload apache2
+
+2. **Choose a TLS certificate option:**
+
+   - **Self-signed certificate for testing:**
+
+         sudo mkdir -p /etc/apache2/ssl
+         sudo openssl req -x509 -nodes -days 365 \
+           -newkey rsa:2048 \
+           -keyout /etc/apache2/ssl/nodervisor.key \
+           -out /etc/apache2/ssl/nodervisor.crt \
+           -subj "/CN=example.com"
+
+   - **Let's Encrypt certificate (recommended for production):**
+
+         sudo apt install certbot python3-certbot-apache
+         sudo certbot --apache -d example.com -d www.example.com
+
+     Certbot writes the certificate and key to `/etc/letsencrypt/live/<domain>/` and can automatically renew them. If you prefer to manage the Apache configuration manually, use `certbot certonly --apache` and point the virtual host to the generated files.
+
+3. **Create an Apache site configuration** pointing to the Nodervisor process running on port `3000`. Adjust the domain name and certificate paths to match your environment:
+
+   ```apacheconf
+   <VirtualHost *:80>
+       ServerName example.com
+       ServerAlias www.example.com
+
+       RewriteEngine On
+       RewriteCond %{HTTPS} !=on
+       RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R=301,L]
+   </VirtualHost>
+
+   <IfModule mod_ssl.c>
+   <VirtualHost *:443>
+       ServerName example.com
+       ServerAlias www.example.com
+
+       SSLEngine on
+       SSLCertificateFile /etc/letsencrypt/live/example.com/fullchain.pem
+       SSLCertificateKeyFile /etc/letsencrypt/live/example.com/privkey.pem
+
+       ProxyPreserveHost On
+       ProxyPass / http://127.0.0.1:3000/
+       ProxyPassReverse / http://127.0.0.1:3000/
+
+       RequestHeader set X-Forwarded-Proto "https"
+       RequestHeader set X-Forwarded-Port "443"
+
+       ErrorLog ${APACHE_LOG_DIR}/nodervisor-error.log
+       CustomLog ${APACHE_LOG_DIR}/nodervisor-access.log combined
+   </VirtualHost>
+   </IfModule>
+   ```
+
+4. **Enable the site and reload Apache:**
+
+       sudo a2ensite nodervisor.conf
+       sudo systemctl reload apache2
+
+After reloading, Apache serves Nodervisor via HTTPS while forwarding requests to the Node.js server on port `3000`. Remember to keep your certificates renewed (Certbot installs a systemd timer by default) and adjust firewall rules to allow traffic on ports 80 and 443.
 
 ### Styling the dashboard
 
