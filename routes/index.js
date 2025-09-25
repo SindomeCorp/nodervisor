@@ -1,8 +1,5 @@
 import { Router } from 'express';
 
-import { ajax_supervisorctl } from './ajax_supervisorctl.js';
-import { ajax_supervisord } from './ajax_supervisord.js';
-import { ajax_supervisorlog } from './ajax_supervisorlog.js';
 import { dashboard } from './dashboard.js';
 import { groups } from './groups.js';
 import { hosts } from './hosts.js';
@@ -11,9 +8,53 @@ import { login } from './login.js';
 import { logout } from './logout.js';
 import { supervisord } from './supervisord.js';
 import { users } from './users.js';
+import { ServiceError, SupervisordService } from '../services/supervisordService.js';
 
 export function createRouter(params) {
   const router = Router();
+  const supervisordService = new SupervisordService(params);
+
+  const respondSuccess = (res, data, status = 200) =>
+    res.status(status).json({ status: 'success', data });
+
+  const respondError = (res, error) => {
+    const statusCode = error instanceof ServiceError && error.statusCode ? error.statusCode : 500;
+    const message = error?.message ?? 'Unexpected error';
+    const payload = { status: 'error', error: { message } };
+
+    if (error instanceof ServiceError && error.details) {
+      payload.error.details = error.details;
+    }
+
+    return res.status(statusCode).json(payload);
+  };
+
+  const handleRoute = (handler) => async (req, res, next) => {
+    try {
+      await handler(req, res, next);
+    } catch (err) {
+      respondError(res, err);
+    }
+  };
+
+  const ensureLoggedIn = (req) => {
+    if (!req.session?.loggedIn) {
+      throw new ServiceError('Not authenticated', 401);
+    }
+  };
+
+  const ensureAdmin = (req) => {
+    ensureLoggedIn(req);
+
+    if (req.session.user?.Role !== 'Admin') {
+      throw new ServiceError('Insufficient privileges', 403);
+    }
+  };
+
+  const parseNumber = (value, fallback) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
 
   router.get('/', supervisord());
   router.get('/dashboard', dashboard());
@@ -57,9 +98,58 @@ export function createRouter(params) {
 
   router.get('/log/:host/:process/:type', log(params));
 
-  router.get('/ajax/supervisorctl', ajax_supervisorctl(params));
-  router.get('/ajax/supervisord', ajax_supervisord(params));
-  router.get('/ajax/supervisorlog', ajax_supervisorlog(params));
+  router.get(
+    '/api/v1/supervisors',
+    handleRoute(async (req, res) => {
+      ensureLoggedIn(req);
+      const data = await supervisordService.fetchAllProcessInfo();
+      respondSuccess(res, data);
+    })
+  );
+
+  router.post(
+    '/api/v1/supervisors/control',
+    handleRoute(async (req, res) => {
+      ensureAdmin(req);
+      const { host, process, action } = req.body ?? {};
+      const result = await supervisordService.controlProcess({
+        hostId: host,
+        processName: process,
+        action
+      });
+      respondSuccess(res, result);
+    })
+  );
+
+  router.get(
+    '/api/v1/supervisors/logs',
+    handleRoute(async (req, res) => {
+      ensureAdmin(req);
+      const { host, process, type, offset, length } = req.query;
+      const data = await supervisordService.getProcessLog({
+        hostId: host,
+        processName: process,
+        type,
+        offset: parseNumber(offset, 0),
+        length: length !== undefined ? parseNumber(length, 16384) : 16384
+      });
+      respondSuccess(res, data);
+    })
+  );
+
+  router.post(
+    '/api/v1/supervisors/logs/clear',
+    handleRoute(async (req, res) => {
+      ensureAdmin(req);
+      const { host, process } = req.body ?? {};
+      const data = await supervisordService.getProcessLog({
+        hostId: host,
+        processName: process,
+        type: 'clear'
+      });
+      respondSuccess(res, data);
+    })
+  );
 
   return router;
 }
