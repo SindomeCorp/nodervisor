@@ -24,6 +24,39 @@ A Supervisord manager in node.js. Nodervisor provides a real-time web dashboard 
         DB_FILENAME=./nodervisor.sqlite
         SESSION_SECRET=use-a-long-random-string
 
+  3. Run the database migrations and seed data:
+
+        npm run migrate
+        npm run seed
+
+### Database configuration
+
+Nodervisor uses [Knex](https://knexjs.org/) for database access. The default configuration relies on SQLite, but MySQL (via the [`mysql2`](https://www.npmjs.com/package/mysql2) driver) and PostgreSQL (via [`pg`](https://www.npmjs.com/package/pg)) are also supported. Select a database by setting `DB_CLIENT` and the related connection settings in your environment:
+
+```
+# SQLite (default)
+DB_CLIENT=sqlite3
+DB_FILENAME=./nodervisor.sqlite
+
+# MySQL
+DB_CLIENT=mysql2
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=nodervisor
+DB_USER=root
+DB_PASSWORD=root
+
+# PostgreSQL
+DB_CLIENT=pg
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=nodervisor
+DB_USER=postgres
+DB_PASSWORD=postgres
+```
+
+The session store uses the same connection details by default, but you can override it with the `SESSION_DB_*` variables when needed.
+
 ### How to use it
 
   Run the app using:

@@ -1,0 +1,79 @@
+name: Database checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  sqlite:
+    name: SQLite migrations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run migrations
+        run: npm run migrate
+
+      - name: Seed database
+        run: npm run seed
+
+  mysql:
+    name: MySQL migrations
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: nodervisor
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for MySQL
+        run: npx --yes wait-on tcp:127.0.0.1:3306
+
+      - name: Run migrations
+        run: npm run migrate
+        env:
+          DB_CLIENT: mysql2
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_NAME: nodervisor
+          DB_USER: root
+          DB_PASSWORD: root
+
+      - name: Seed database
+        run: npm run seed
+        env:
+          DB_CLIENT: mysql2
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_NAME: nodervisor
+          DB_USER: root
+          DB_PASSWORD: root

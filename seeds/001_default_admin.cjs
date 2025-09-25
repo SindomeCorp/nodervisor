@@ -2,9 +2,7 @@
  * @param {import('knex')} knex
  */
 exports.seed = async function seed(knex) {
-  const existingAdmin = await knex('users')
-    .where({ Email: 'admin@nodervisor' })
-    .first();
+  const existingAdmin = await knex('users').where('Email', 'admin@nodervisor').first();
 
   if (!existingAdmin) {
     await knex('users').insert({
