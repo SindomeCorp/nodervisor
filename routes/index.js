@@ -1,7 +1,5 @@
 import { Router } from 'express';
 
-import { login } from './login.js';
-import { logout } from './logout.js';
 import { SupervisordService } from '../services/supervisordService.js';
 import { ServiceError } from '../services/errors.js';
 import {
@@ -14,6 +12,7 @@ import { renderAppPage } from '../server/renderAppPage.js';
 import { createHostsApi } from './api/hosts.js';
 import { createGroupsApi } from './api/groups.js';
 import { createUsersApi } from './api/users.js';
+import { createAuthApi } from './api/auth.js';
 
 /** @typedef {import('../server/types.js').ServerContext} ServerContext */
 
@@ -55,12 +54,13 @@ export function createRouter(context) {
     return Number.isFinite(parsed) ? parsed : fallback;
   };
 
-  const serveApp = ({ title, requireAdmin = false }) => (req, res) => {
-    const ensure = requireAdmin ? ensureAdminRequest : ensureAuthenticatedRequest;
-    if (!ensure(req, res)) {
-      return;
+  const serveApp = ({ title, requireAdmin = false, requireAuth = true }) => (req, res) => {
+    if (requireAuth) {
+      const ensure = requireAdmin ? ensureAdminRequest : ensureAuthenticatedRequest;
+      if (!ensure(req, res)) {
+        return;
+      }
     }
-
     const html = renderAppPage({
       title,
       dashboardAssets: req.app.locals.dashboardAssets,
@@ -70,18 +70,12 @@ export function createRouter(context) {
     res.type('html').send(html);
   };
 
+  router.get(['/auth', '/auth/*'], serveApp({ title: 'Nodervisor - Sign in', requireAuth: false }));
   router.get('/', serveApp({ title: 'Nodervisor - Dashboard' }));
   router.get('/dashboard', serveApp({ title: 'Nodervisor - Dashboard' }));
   router.get(['/hosts', '/hosts/*'], serveApp({ title: 'Nodervisor - Hosts', requireAdmin: true }));
   router.get(['/groups', '/groups/*'], serveApp({ title: 'Nodervisor - Groups', requireAdmin: true }));
   router.get(['/users', '/users/*'], serveApp({ title: 'Nodervisor - Users', requireAdmin: true }));
-
-  router
-    .route('/login')
-    .get(login(context))
-    .post(login(context));
-
-  router.get('/logout', logout(context));
 
   router.get(
     '/api/v1/supervisors',
@@ -139,6 +133,7 @@ export function createRouter(context) {
   router.use('/api/v1/hosts', createHostsApi(context));
   router.use('/api/v1/groups', createGroupsApi(context));
   router.use('/api/v1/users', createUsersApi(context));
+  router.use('/api/auth', createAuthApi(context));
 
   return router;
 }

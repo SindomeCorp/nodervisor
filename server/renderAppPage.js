@@ -10,18 +10,17 @@ import escapeHtml from 'escape-html';
  * }} options
  */
 export function renderAppPage({ title = 'Nodervisor', dashboardAssets = null, session = null } = {}) {
-  const cssAssets = [
-    '/css/bootstrap.min.css',
-    '/css/bootstrap-responsive.min.css',
-    '/css/normalize.min.css',
-    '/css/main.css',
-    '/css/font-awesome.min.css',
-    ...(dashboardAssets?.css ?? [])
-  ];
+  const cssAssets = [...(dashboardAssets?.css ?? [])];
 
   const scriptAssets = dashboardAssets?.js ? [dashboardAssets.js] : [];
   const serializedState = serializeState({
-    user: session?.user ?? null
+    user: session?.user ?? null,
+    auth: {
+      session: '/api/auth/session',
+      login: '/api/auth/login',
+      logout: '/api/auth/logout',
+      register: '/api/auth/register'
+    }
   });
 
   const styles = cssAssets

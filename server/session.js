@@ -44,7 +44,7 @@ export function isSessionAdmin(session) {
  * @param {string} [redirectTo='/login']
  * @returns {boolean}
  */
-export function ensureAuthenticatedRequest(req, res, redirectTo = '/login') {
+export function ensureAuthenticatedRequest(req, res, redirectTo = '/auth/login') {
   if (!isSessionAuthenticated(req.session)) {
     res.redirect(redirectTo);
     return false;

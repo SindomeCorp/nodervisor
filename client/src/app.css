@@ -1,0 +1,137 @@
+:root {
+  color-scheme: light;
+}
+
+body {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  background-color: #f6f8fa;
+  color: #1b1e2e;
+  min-height: 100vh;
+}
+
+.dashboard-app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header-container {
+  background-color: #00744a;
+  border-bottom: 2px solid #133f52;
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+}
+
+.header-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 1100px;
+  padding: 0.75rem 1.5rem;
+}
+
+.title {
+  color: #fff;
+  font-size: 1.75rem;
+  margin: 0;
+}
+
+.app-brand-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-brand-link:hover,
+.app-brand-link:focus {
+  text-decoration: underline;
+}
+
+.nav-list {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-list a,
+.nav-list button {
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.nav-list a:hover,
+.nav-list button:hover,
+.nav-list a:focus,
+.nav-list button:focus {
+  text-decoration: underline;
+}
+
+.nav-list .btn {
+  padding: 0;
+}
+
+.nav-list .btn:disabled {
+  opacity: 0.75;
+}
+
+.app-main {
+  flex: 1;
+  padding: 2rem 1rem 3rem;
+  width: 100%;
+}
+
+.app-main .alert {
+  margin-bottom: 1.5rem;
+}
+
+.auth-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(0, 116, 74, 0.15) 0%, rgba(0, 116, 74, 0) 100%);
+}
+
+.auth-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+}
+
+.auth-card .card-body {
+  padding: 2rem;
+}
+
+.auth-card .card-footer {
+  background-color: transparent;
+  border-top: none;
+  padding: 1.25rem 2rem 2rem;
+}
+
+.auth-card a {
+  font-weight: 600;
+}
+
+@media (max-width: 767px) {
+  .header-wrapper {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .nav-list {
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+  }
+}

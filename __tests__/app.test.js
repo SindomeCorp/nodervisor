@@ -199,9 +199,8 @@ async function createTestApp({ userRole = 'Admin' } = {}) {
 
 async function login(agent, email = TEST_EMAIL, password = TEST_PASSWORD) {
   const response = await agent
-    .post('/login')
-    .type('form')
-    .send({ submit: 'Login', email, password });
+    .post('/api/auth/login')
+    .send({ email, password });
 
   return response;
 }
@@ -223,7 +222,11 @@ describe('Nodervisor application', () => {
     const agent = request.agent(app);
 
     const loginResponse = await login(agent, TEST_EMAIL, 'wrong-password');
-    expect(loginResponse.status).toBe(200);
+    expect(loginResponse.status).toBe(401);
+    expect(loginResponse.body).toEqual({
+      status: 'error',
+      error: { message: 'Invalid email or password.' }
+    });
 
     const apiResponse = await agent.get('/api/v1/supervisors');
     expect(apiResponse.status).toBe(401);
@@ -238,8 +241,18 @@ describe('Nodervisor application', () => {
     const agent = request.agent(app);
 
     const loginResponse = await login(agent);
-    expect(loginResponse.status).toBe(302);
-    expect(loginResponse.headers.location).toBe('/');
+    expect(loginResponse.status).toBe(200);
+    expect(loginResponse.body).toEqual({
+      status: 'success',
+      data: {
+        user: {
+          id: expect.any(Number),
+          name: expect.any(String),
+          email: TEST_EMAIL,
+          role: 'Admin'
+        }
+      }
+    });
 
     const response = await agent.get('/api/v1/supervisors');
     expect(response.status).toBe(200);
