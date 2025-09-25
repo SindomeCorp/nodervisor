@@ -1,18 +1,18 @@
 import { Router } from 'express';
 
-import { dashboard } from './dashboard.js';
-import { groups } from './groups.js';
-import { hosts } from './hosts.js';
-import { log } from './log.js';
 import { login } from './login.js';
 import { logout } from './logout.js';
-import { supervisord } from './supervisord.js';
-import { users } from './users.js';
 import { ServiceError, SupervisordService } from '../services/supervisordService.js';
 import {
   assertSessionAdmin,
-  assertSessionAuthenticated
+  assertSessionAuthenticated,
+  ensureAdminRequest,
+  ensureAuthenticatedRequest
 } from '../server/session.js';
+import { renderAppPage } from '../server/renderAppPage.js';
+import { createHostsApi } from './api/hosts.js';
+import { createGroupsApi } from './api/groups.js';
+import { createUsersApi } from './api/users.js';
 
 /** @typedef {import('../server/types.js').ServerContext} ServerContext */
 
@@ -54,38 +54,26 @@ export function createRouter(context) {
     return Number.isFinite(parsed) ? parsed : fallback;
   };
 
-  router.get('/', supervisord(context));
-  router.get('/dashboard', dashboard(context));
+  const serveApp = ({ title, requireAdmin = false }) => (req, res) => {
+    const ensure = requireAdmin ? ensureAdminRequest : ensureAuthenticatedRequest;
+    if (!ensure(req, res)) {
+      return;
+    }
 
-  router
-    .route('/hosts')
-    .get(hosts(context))
-    .post(hosts(context));
+    const html = renderAppPage({
+      title,
+      dashboardAssets: req.app.locals.dashboardAssets,
+      session: req.session
+    });
 
-  router
-    .route('/host/:idHost')
-    .get(hosts(context))
-    .post(hosts(context));
+    res.type('html').send(html);
+  };
 
-  router
-    .route('/groups')
-    .get(groups(context))
-    .post(groups(context));
-
-  router
-    .route('/group/:idGroup')
-    .get(groups(context))
-    .post(groups(context));
-
-  router
-    .route('/users')
-    .get(users(context))
-    .post(users(context));
-
-  router
-    .route('/user/:idUser')
-    .get(users(context))
-    .post(users(context));
+  router.get('/', serveApp({ title: 'Nodervisor - Dashboard' }));
+  router.get('/dashboard', serveApp({ title: 'Nodervisor - Dashboard' }));
+  router.get(['/hosts', '/hosts/*'], serveApp({ title: 'Nodervisor - Hosts', requireAdmin: true }));
+  router.get(['/groups', '/groups/*'], serveApp({ title: 'Nodervisor - Groups', requireAdmin: true }));
+  router.get(['/users', '/users/*'], serveApp({ title: 'Nodervisor - Users', requireAdmin: true }));
 
   router
     .route('/login')
@@ -93,8 +81,6 @@ export function createRouter(context) {
     .post(login(context));
 
   router.get('/logout', logout(context));
-
-  router.get('/log/:host/:process/:type', log(context));
 
   router.get(
     '/api/v1/supervisors',
@@ -148,6 +134,10 @@ export function createRouter(context) {
       respondSuccess(res, data);
     })
   );
+
+  router.use('/api/v1/hosts', createHostsApi(context));
+  router.use('/api/v1/groups', createGroupsApi(context));
+  router.use('/api/v1/users', createUsersApi(context));
 
   return router;
 }

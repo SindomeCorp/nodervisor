@@ -1,14 +1,15 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import DashboardApp from './DashboardApp.jsx';
+import App from './App.jsx';
 
-const container = document.getElementById('dashboard-root');
+const container = document.getElementById('app-root');
+const initialState = window.__APP_STATE__ ?? {};
 
 if (container) {
   const root = createRoot(container);
   root.render(
     <React.StrictMode>
-      <DashboardApp />
+      <App initialState={initialState} />
     </React.StrictMode>
   );
 }

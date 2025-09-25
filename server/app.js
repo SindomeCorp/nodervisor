@@ -6,7 +6,6 @@ import morgan from 'morgan';
 import methodOverride from 'method-override';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
-import stylus from 'stylus';
 import errorhandler from 'errorhandler';
 import { fileURLToPath } from 'url';
 
@@ -31,8 +30,6 @@ export function createApp(context) {
 
   app.set('port', config.port);
   app.set('host', config.host);
-  app.set('views', path.join(projectRoot, 'views'));
-  app.set('view engine', 'ejs');
   app.set('env', config.env);
 
   app.use(favicon(path.join(projectRoot, 'public', 'favicon.ico')));
@@ -51,7 +48,6 @@ export function createApp(context) {
       store: sessionStore
     })
   );
-  app.use(stylus.middleware(path.join(projectRoot, 'public')));
   app.use(express.static(path.join(projectRoot, 'public')));
 
   app.locals.dashboardAssets = loadDashboardAssets(config.dashboard);
