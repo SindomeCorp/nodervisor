@@ -7,6 +7,8 @@ import methodOverride from 'method-override';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import errorhandler from 'errorhandler';
+import helmet from 'helmet';
+import csurf from 'csurf';
 import { fileURLToPath } from 'url';
 
 import { createRouter } from '../routes/index.js';
@@ -38,16 +40,81 @@ export function createApp(context) {
   app.use(express.urlencoded({ extended: false }));
   app.use(methodOverride('_method'));
   app.use(cookieParser());
+  app.use(helmet());
   app.use(
     session({
       name: config.session.name,
       secret: config.session.secret,
       resave: false,
       saveUninitialized: false,
+      rolling: true,
       cookie: config.session.cookie,
       store: sessionStore
     })
   );
+  app.use((req, res, next) => {
+    if (!req.session) {
+      next();
+      return;
+    }
+
+    const idleTimeout = config.session.cookie?.maxAge;
+    if (!idleTimeout) {
+      next();
+      return;
+    }
+
+    const now = Date.now();
+    const lastActivity = req.session.lastActivityAt;
+    if (typeof lastActivity === 'number' && now - lastActivity > idleTimeout) {
+      req.session.destroy((err) => {
+        if (err) {
+          next(err);
+          return;
+        }
+        res.clearCookie(config.session.name);
+        next();
+      });
+      return;
+    }
+
+    req.session.lastActivityAt = now;
+    next();
+  });
+  const csrfProtection = csurf({
+    cookie: {
+      httpOnly: true,
+      sameSite: config.session.cookie?.sameSite ?? 'lax',
+      secure: config.session.cookie?.secure ?? false,
+      path: config.session.cookie?.path ?? '/',
+      domain: config.session.cookie?.domain
+    }
+  });
+  app.use(csrfProtection);
+  app.use((req, res, next) => {
+    if (typeof req.csrfToken !== 'function') {
+      next();
+      return;
+    }
+
+    try {
+      const token = req.csrfToken();
+      res.locals.csrfToken = token;
+      res.set('X-CSRF-Token', token);
+      res.cookie('XSRF-TOKEN', token, {
+        httpOnly: false,
+        sameSite: config.session.cookie?.sameSite ?? 'lax',
+        secure: config.session.cookie?.secure ?? false,
+        path: config.session.cookie?.path ?? '/',
+        domain: config.session.cookie?.domain
+      });
+    } catch (err) {
+      next(err);
+      return;
+    }
+
+    next();
+  });
   app.use(express.static(path.join(projectRoot, 'public')));
 
   app.locals.dashboardAssets = loadDashboardAssets(config.dashboard);
@@ -58,6 +125,16 @@ export function createApp(context) {
 
   const router = createRouter(context);
   app.use(router);
+
+  // Handle CSRF token validation errors consistently across the API.
+  app.use((err, req, res, next) => {
+    if (err.code === 'EBADCSRFTOKEN') {
+      res.status(403).json({ status: 'error', error: { message: 'Invalid CSRF token' } });
+      return;
+    }
+
+    next(err);
+  });
 
   return app;
 }

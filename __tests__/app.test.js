@@ -197,10 +197,32 @@ async function createTestApp({ userRole = 'Admin' } = {}) {
   return { app, client, host, userRecord, userRepository, hostRepository, groupRepository, hostCache, context };
 }
 
+async function fetchCsrfToken(agent) {
+  const response = await agent.get('/api/auth/session');
+  expect(response.status).toBe(200);
+  const token = response.body?.data?.csrfToken;
+  expect(typeof token).toBe('string');
+  return token;
+}
+
+async function postWithCsrf(agent, url, payload) {
+  const token = await fetchCsrfToken(agent);
+  const requestBuilder = agent.post(url).set('x-csrf-token', token);
+  return payload === undefined ? requestBuilder : requestBuilder.send(payload);
+}
+
+async function putWithCsrf(agent, url, payload) {
+  const token = await fetchCsrfToken(agent);
+  return agent.put(url).set('x-csrf-token', token).send(payload);
+}
+
+async function deleteWithCsrf(agent, url) {
+  const token = await fetchCsrfToken(agent);
+  return agent.delete(url).set('x-csrf-token', token);
+}
+
 async function login(agent, email = TEST_EMAIL, password = TEST_PASSWORD) {
-  const response = await agent
-    .post('/api/auth/login')
-    .send({ email, password });
+  const response = await postWithCsrf(agent, '/api/auth/login', { email, password });
 
   return response;
 }
@@ -233,6 +255,38 @@ describe('Nodervisor application', () => {
     expect(apiResponse.body).toEqual({
       status: 'error',
       error: { message: 'Not authenticated' }
+    });
+  });
+
+  it('rejects login attempts without a CSRF token', async () => {
+    const { app } = await createTestApp();
+    const agent = request.agent(app);
+
+    const response = await agent.post('/api/auth/login').send({ email: TEST_EMAIL, password: TEST_PASSWORD });
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ status: 'error', error: { message: 'Invalid CSRF token' } });
+  });
+
+  it('throttles repeated login attempts from the same client', async () => {
+    const { app } = await createTestApp();
+    const agent = request.agent(app);
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await login(agent, TEST_EMAIL, 'bad-password');
+      expect(response.status).toBe(401);
+    }
+
+    const csrfToken = await fetchCsrfToken(agent);
+    const throttledResponse = await agent
+      .post('/api/auth/login')
+      .set('x-csrf-token', csrfToken)
+      .send({ email: TEST_EMAIL, password: 'bad-password' });
+
+    expect(throttledResponse.status).toBe(429);
+    expect(throttledResponse.body).toEqual({
+      status: 'error',
+      error: { message: 'Too many login attempts. Please try again later.' }
     });
   });
 
@@ -274,7 +328,7 @@ describe('Nodervisor application', () => {
 
     await login(agent);
 
-    const response = await agent.post('/api/v1/supervisors/control').send({
+    const response = await postWithCsrf(agent, '/api/v1/supervisors/control', {
       host: host.idHost,
       process: 'app',
       action: 'restart'
@@ -313,9 +367,10 @@ describe('Nodervisor application', () => {
       data: ['##########', 64, false]
     });
 
-    const clearResponse = await agent
-      .post('/api/v1/supervisors/logs/clear')
-      .send({ host: host.idHost, process: 'app' });
+    const clearResponse = await postWithCsrf(agent, '/api/v1/supervisors/logs/clear', {
+      host: host.idHost,
+      process: 'app'
+    });
 
     expect(clearResponse.status).toBe(200);
     expect(client.clearProcessLogs).toHaveBeenCalledWith('app', expect.any(Function));
@@ -348,12 +403,15 @@ describe('Nodervisor application', () => {
     hostRepository.createHost.mockImplementation(async (payload) => ({ id: 6, ...payload }));
     hostRepository.getHostById.mockResolvedValueOnce({ id: 6, name: 'To Remove', url: 'http://remove', groupId: null });
 
-    const createResponse = await agent.post('/api/v1/hosts').send({ name: 'New Host', url: 'http://new-host' });
+    const createResponse = await postWithCsrf(agent, '/api/v1/hosts', {
+      name: 'New Host',
+      url: 'http://new-host'
+    });
     expect(createResponse.status).toBe(201);
     expect(hostRepository.createHost).toHaveBeenCalledWith({ name: 'New Host', url: 'http://new-host', groupId: null });
     expect(hostCache.refresh).toHaveBeenCalled();
 
-    const deleteResponse = await agent.delete('/api/v1/hosts/6');
+    const deleteResponse = await deleteWithCsrf(agent, '/api/v1/hosts/6');
     expect(deleteResponse.status).toBe(204);
     expect(hostRepository.deleteHost).toHaveBeenCalledWith(6);
     expect(hostCache.refresh).toHaveBeenCalledTimes(2);
@@ -368,7 +426,7 @@ describe('Nodervisor application', () => {
     groupRepository.getGroupById.mockResolvedValue({ id: 3, name: 'Staging' });
     groupRepository.updateGroup.mockResolvedValue({ id: 3, name: 'Production' });
 
-    const response = await agent.put('/api/v1/groups/3').send({ name: 'Production' });
+    const response = await putWithCsrf(agent, '/api/v1/groups/3', { name: 'Production' });
     expect(response.status).toBe(200);
     expect(groupRepository.updateGroup).toHaveBeenCalledWith(3, { name: 'Production' });
     expect(response.body).toEqual({ status: 'success', data: { id: 3, name: 'Production' } });
@@ -382,7 +440,7 @@ describe('Nodervisor application', () => {
 
     userRepository.createUser.mockImplementation(async (input) => ({ id: 9, ...input, passwordHash: undefined }));
 
-    const response = await agent.post('/api/v1/users').send({
+    const response = await postWithCsrf(agent, '/api/v1/users', {
       name: 'CLI User',
       email: 'cli@example.test',
       role: 'User',

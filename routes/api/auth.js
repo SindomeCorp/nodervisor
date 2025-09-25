@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
+import rateLimit from 'express-rate-limit';
 
 import { ServiceError } from '../../services/errors.js';
 
@@ -12,16 +13,32 @@ export function createAuthApi(context) {
     data: { users: userRepository }
   } = context;
 
+  const loginLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler(req, res) {
+      res.status(429).json({ status: 'error', error: { message: 'Too many login attempts. Please try again later.' } });
+    }
+  });
+
   router.get('/session', (req, res) => {
+    const csrfToken =
+      typeof res.locals.csrfToken === 'string' && res.locals.csrfToken.length > 0
+        ? res.locals.csrfToken
+        : req.csrfToken();
+
     res.json({
       status: 'success',
       data: {
-        user: req.session?.user ?? null
+        user: req.session?.user ?? null,
+        csrfToken
       }
     });
   });
 
-  router.post('/login', async (req, res) => {
+  router.post('/login', loginLimiter, async (req, res) => {
     try {
       const { email, password } = req.body ?? {};
       if (!email || !password) {
@@ -42,6 +59,16 @@ export function createAuthApi(context) {
         res.status(401).json({ status: 'error', error: { message: 'Invalid email or password.' } });
         return;
       }
+
+      await new Promise((resolve, reject) => {
+        req.session.regenerate((err) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          resolve();
+        });
+      });
 
       const session = /** @type {RequestSession} */ (req.session);
       session.loggedIn = true;
@@ -91,6 +118,16 @@ export function createAuthApi(context) {
       if (!created) {
         throw new ServiceError('Failed to create account', 500);
       }
+
+      await new Promise((resolve, reject) => {
+        req.session.regenerate((err) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          resolve();
+        });
+      });
 
       const session = /** @type {RequestSession} */ (req.session);
       session.loggedIn = true;
