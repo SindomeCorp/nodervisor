@@ -1,0 +1,5 @@
+node_modules/
+public/
+client/dist/
+client/.vite/
+*.sqlite
