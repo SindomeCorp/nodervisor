@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import { SupervisordService } from '../services/supervisordService.js';
 import { ServiceError } from '../services/errors.js';
-import { assertSessionAuthenticated, assertSessionRole, ensureAuthenticatedRequest, ensureRoleRequest } from '../server/session.js';
+import { assertSessionRole, ensureAuthenticatedRequest, ensureRoleRequest } from '../server/session.js';
 import { ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER } from '../shared/roles.js';
 import { renderAppPage } from '../server/renderAppPage.js';
 import { createHostsApi } from './api/hosts.js';
@@ -63,7 +63,8 @@ export function createRouter(context) {
     const html = renderAppPage({
       title,
       dashboardAssets: req.app.locals.dashboardAssets,
-      session: req.session
+      session: req.session,
+      auth: context.config.auth
     });
 
     res.type('html').send(html);
