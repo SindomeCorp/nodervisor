@@ -16,11 +16,16 @@
         <link rel="stylesheet" href="/css/main.css">
         <link rel="stylesheet" href="/css/font-awesome.min.css">
 
-        <script src="/js/jquery-1.10.1.min.js"></script>
-        <script src="/js/bootstrap.min.js"></script>
-        <script src="/js/vendor/modernizr-2.6.2-respond-1.1.0.min.js"></script>
-        <script src="/js/vendor/ejs_production.js"></script>
-        <script src="/js/vendor/moment.min.js"></script>
+        <% if (includeDashboardApp && dashboardAssets) { %>
+            <% if (dashboardAssets.css && dashboardAssets.css.length) { %>
+                <% dashboardAssets.css.forEach(function(href) { %>
+                    <link rel="stylesheet" href="<%= href %>">
+                <% }); %>
+            <% } %>
+            <% if (dashboardAssets.js) { %>
+                <script type="module" src="<%= dashboardAssets.js %>" defer></script>
+            <% } %>
+        <% } %>
     </head>
     <body>
         <!--[if lt IE 7]>
