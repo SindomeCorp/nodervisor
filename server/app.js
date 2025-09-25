@@ -33,6 +33,7 @@ export function createApp(context) {
   app.set('port', config.port);
   app.set('host', config.host);
   app.set('env', config.env);
+  app.set('trust proxy', config.trustProxy ?? false);
 
   app.use(favicon(path.join(projectRoot, 'public', 'favicon.ico')));
   app.use(morgan('dev'));
