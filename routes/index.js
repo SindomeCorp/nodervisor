@@ -1,70 +1,65 @@
-/*
- * Set up all routes
- */
+import { Router } from 'express';
 
-function routes(params) {
-        var app = params.app;
+import { ajax_supervisorctl } from './ajax_supervisorctl.js';
+import { ajax_supervisord } from './ajax_supervisord.js';
+import { ajax_supervisorlog } from './ajax_supervisorlog.js';
+import { dashboard } from './dashboard.js';
+import { groups } from './groups.js';
+import { hosts } from './hosts.js';
+import { log } from './log.js';
+import { login } from './login.js';
+import { logout } from './logout.js';
+import { supervisord } from './supervisord.js';
+import { users } from './users.js';
 
-        /*
-         * Shim to load all files in routes folder
-         */
-        var fs = require('fs'),
-                path = require('path');
+export function createRouter(params) {
+  const router = Router();
 
-        fs.readdirSync(__dirname).forEach(function(file) {
-                var route_fname = __dirname + '/' + file;
-                var route_name = path.basename(route_fname, '.js');
-                if (route_name !== 'index' && route_name[0] !== ".") {
-                        routes[route_name] = require(route_fname)[route_name];
-                }
-        });
+  router.get('/', supervisord());
+  router.get('/dashboard', dashboard());
 
-        /**
-         * Link routes to items in routes array
-         */
+  router
+    .route('/hosts')
+    .get(hosts(params))
+    .post(hosts(params));
 
-        // Home page
-        app.get('/', routes['supervisord']());
-        app.get('/dashboard', routes['dashboard']());
+  router
+    .route('/host/:idHost')
+    .get(hosts(params))
+    .post(hosts(params));
 
-        // Hosts page
-        app.get('/hosts', routes['hosts'](params));
-        app.post('/hosts', routes['hosts'](params));
+  router
+    .route('/groups')
+    .get(groups(params))
+    .post(groups(params));
 
-        // Host edit page
-        app.get('/host/:idHost', routes['hosts'](params));
-        app.post('/host/:idHost', routes['hosts'](params));
+  router
+    .route('/group/:idGroup')
+    .get(groups(params))
+    .post(groups(params));
 
-        // Groups page
-        app.get('/groups', routes['groups'](params));
-        app.post('/groups', routes['groups'](params));
+  router
+    .route('/users')
+    .get(users(params))
+    .post(users(params));
 
-        // Group edit page
-        app.get('/group/:idGroup', routes['groups'](params));
-        app.post('/group/:idGroup', routes['groups'](params));
+  router
+    .route('/user/:idUser')
+    .get(users(params))
+    .post(users(params));
 
-        // Users page
-        app.get('/users', routes['users'](params));
-        app.post('/users', routes['users'](params));
+  router
+    .route('/login')
+    .get(login(params))
+    .post(login(params));
 
-        // User edit page
-        app.get('/user/:idUser', routes['users'](params));
-        app.post('/user/:idUser', routes['users'](params));
+  router.get('/logout', logout());
 
-        // Login page
-        app.get('/login', routes['login'](params));
-        app.post('/login', routes['login'](params));
+  router.get('/log/:host/:process/:type', log(params));
 
-        // Logout page
-        app.get('/logout', routes['logout']());
+  router.get('/ajax/supervisorctl', ajax_supervisorctl(params));
+  router.get('/ajax/supervisord', ajax_supervisord(params));
+  router.get('/ajax/supervisorlog', ajax_supervisorlog(params));
 
-        // Logs page
-        app.get('/log/:host/:process/:type', routes['log'](params));
-
-        // Supervisor Control Pages
-        app.get('/ajax/supervisorctl', routes['ajax_supervisorctl'](params));
-        app.get('/ajax/supervisord', routes['ajax_supervisord'](params));
-        app.get('/ajax/supervisorlog', routes['ajax_supervisorlog'](params));
+  return router;
 }
-
-module.exports = routes;
