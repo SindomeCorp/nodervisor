@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcrypt';
 
 import { assertSessionAdmin } from '../../server/session.js';
-import { ServiceError } from '../../services/supervisordService.js';
+import { ServiceError } from '../../services/errors.js';
 
 /** @typedef {import('../../server/types.js').ServerContext} ServerContext */
 

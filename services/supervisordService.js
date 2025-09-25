@@ -1,20 +1,41 @@
 import { inspect } from 'util';
+import pino from 'pino';
 
-class ServiceError extends Error {
-  constructor(message, statusCode = 500, details) {
-    super(message);
-    this.name = 'ServiceError';
-    this.statusCode = statusCode;
-    if (details !== undefined) {
-      this.details = details;
-    }
-  }
-}
+import { ServiceError } from './errors.js';
+import { SupervisordClientWrapper } from './supervisordClientWrapper.js';
+
+const DEFAULT_RPC_OPTIONS = {
+  requestTimeoutMs: 5000,
+  maxRetries: 2,
+  backoffBaseMs: 100,
+  backoffMaxMs: 2000,
+  circuitBreakerThreshold: 3,
+  circuitBreakerResetMs: 30000
+};
+
+const NOOP_METRICS = {
+  onRpcSuccess: () => {},
+  onRpcFailure: () => {},
+  onCircuitOpen: () => {},
+  onCircuitClose: () => {}
+};
 
 export class SupervisordService {
-  constructor({ config, supervisordapi }) {
+  constructor({ config, supervisordapi, logger, metrics, rpcOptions } = {}) {
+    if (!config) {
+      throw new Error('SupervisordService requires a config');
+    }
+
+    if (!supervisordapi) {
+      throw new Error('SupervisordService requires a supervisordapi');
+    }
+
     this.config = config;
     this.supervisordapi = supervisordapi;
+    this.logger = this.#initializeLogger(logger);
+    this.metrics = this.#initializeMetrics(metrics);
+    this.rpcOptions = { ...DEFAULT_RPC_OPTIONS, ...(rpcOptions ?? {}) };
+    this.clientCache = new Map();
   }
 
   async controlProcess({ hostId, processName, action }) {
@@ -62,13 +83,14 @@ export class SupervisordService {
     const hosts = this.config.hostCache?.getAll?.() ?? Object.values(this.config.hosts ?? {});
     const results = await Promise.all(
       hosts.map(async (host) => {
+        const hostId = this.#resolveHostId(host);
         try {
           const client = this.#createClient(host);
           const data = await this.#callClient(client, 'getAllProcessInfo');
-          return [host.idHost, { host, data }];
+          return [hostId, { host, data }];
         } catch (err) {
           const error = err instanceof ServiceError ? err : this.#wrapRpcError(err);
-          return [host.idHost, { host, error: this.#serializeError(error) }];
+          return [hostId, { host, error: this.#serializeError(error) }];
         }
       })
     );
@@ -124,6 +146,31 @@ export class SupervisordService {
     return fetchWindow(startOffset);
   }
 
+  #initializeLogger(logger) {
+    const hasRequiredMethods = (candidate) =>
+      candidate && ['debug', 'info', 'warn', 'error'].every((method) => typeof candidate[method] === 'function');
+
+    if (hasRequiredMethods(logger)) {
+      return logger.child ? logger.child({ component: 'SupervisordService' }) : logger;
+    }
+
+    const base = pino({ name: 'SupervisordService' });
+    return base.child({ component: 'SupervisordService' });
+  }
+
+  #initializeMetrics(metrics) {
+    if (!metrics || typeof metrics !== 'object') {
+      return { ...NOOP_METRICS };
+    }
+
+    return {
+      onRpcSuccess: metrics.onRpcSuccess ?? NOOP_METRICS.onRpcSuccess,
+      onRpcFailure: metrics.onRpcFailure ?? NOOP_METRICS.onRpcFailure,
+      onCircuitOpen: metrics.onCircuitOpen ?? NOOP_METRICS.onCircuitOpen,
+      onCircuitClose: metrics.onCircuitClose ?? NOOP_METRICS.onCircuitClose
+    };
+  }
+
   #getClient(hostId) {
     const host = this.config.hostCache?.get?.(hostId) ?? this.config.hosts?.[hostId];
     if (!host) {
@@ -134,11 +181,31 @@ export class SupervisordService {
   }
 
   #createClient(host) {
-    if (this.config.supervisord?.createClient) {
-      return this.config.supervisord.createClient(this.supervisordapi, host);
+    const hostId = this.#resolveHostId(host);
+    if (this.clientCache.has(hostId)) {
+      return this.clientCache.get(hostId);
     }
 
-    return this.supervisordapi.connect(host.Url);
+    const rawClient = this.config.supervisord?.createClient
+      ? this.config.supervisord.createClient(this.supervisordapi, host)
+      : this.supervisordapi.connect(host.Url);
+
+    const clientLogger = this.logger.child
+      ? this.logger.child({ hostId, hostUrl: host?.Url })
+      : this.logger;
+
+    const wrapper = new SupervisordClientWrapper({
+      hostId,
+      hostUrl: host?.Url,
+      client: rawClient,
+      options: this.rpcOptions,
+      logger: clientLogger,
+      metrics: this.metrics,
+      wrapRpcError: (error) => this.#wrapRpcError(error)
+    });
+
+    this.clientCache.set(hostId, wrapper);
+    return wrapper;
   }
 
   #resolveLogMethod(type) {
@@ -153,20 +220,25 @@ export class SupervisordService {
   }
 
   async #callClient(client, method, ...args) {
-    if (typeof client?.[method] !== 'function') {
-      throw new ServiceError(`Unsupported supervisord method: ${method}`, 500);
+    return client.call(method, ...args);
+  }
+
+  #resolveHostId(host) {
+    const candidate =
+      host?.idHost ??
+      host?.hostId ??
+      host?.id ??
+      host?.Name ??
+      host?.name ??
+      host?.Url ??
+      host?.url;
+
+    if (!candidate) {
+      this.logger.warn?.({ host }, 'Unable to determine host identifier, defaulting to anon-host');
+      return 'anon-host';
     }
 
-    return new Promise((resolve, reject) => {
-      client[method](...args, (err, result) => {
-        if (err) {
-          reject(this.#wrapRpcError(err));
-          return;
-        }
-
-        resolve(result);
-      });
-    });
+    return String(candidate);
   }
 
   #wrapRpcError(err) {
@@ -192,5 +264,3 @@ export class SupervisordService {
     return payload;
   }
 }
-
-export { ServiceError };
