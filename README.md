@@ -24,6 +24,12 @@ A Supervisord manager in node.js. Nodervisor provides a real-time web dashboard 
         DB_FILENAME=./nodervisor.sqlite
         SESSION_SECRET=use-a-long-random-string
 
+     Before seeding the database you must also configure credentials for the bootstrap administrator account. Provide either a plain-text password (it will be hashed during the seed) or a pre-computed bcrypt hash:
+
+        ADMIN_SEED_PASSWORD=change-me-soon
+        # or provide a hash instead of plain text
+        # ADMIN_SEED_PASSWORD_HASH=$2b$12$...
+
   3. Run the database migrations and seed data:
 
         npm run migrate
@@ -67,11 +73,7 @@ The session store uses the same connection details by default, but you can overr
   For instance:
     http://localhost:3000
 
-  3. Log in using the default credentials of:
-  	<ul>
-  		<li>Email: admin@nodervisor</li>
-  		<li>Password: admin</li>
-	</ul>
+  3. Log in using the administrator credentials you configured via `ADMIN_SEED_PASSWORD`/`ADMIN_SEED_PASSWORD_HASH`. The default email is `admin@nodervisor`, but you can override it with `ADMIN_SEED_EMAIL` when seeding.
 
   4. Navigate to the users page using the top menu. Change the admin credentials or add a new user and remove them.
 
