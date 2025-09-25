@@ -2,7 +2,8 @@ import { Router } from 'express';
 
 import { login } from './login.js';
 import { logout } from './logout.js';
-import { ServiceError, SupervisordService } from '../services/supervisordService.js';
+import { SupervisordService } from '../services/supervisordService.js';
+import { ServiceError } from '../services/errors.js';
 import {
   assertSessionAdmin,
   assertSessionAuthenticated,

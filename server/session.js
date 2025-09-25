@@ -1,4 +1,4 @@
-import { ServiceError } from '../services/supervisordService.js';
+import { ServiceError } from '../services/errors.js';
 
 /** @typedef {import('./types.js').RequestSession} RequestSession */
 /** @typedef {import('./types.js').User} User */
