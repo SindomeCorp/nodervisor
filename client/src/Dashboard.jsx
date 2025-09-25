@@ -80,19 +80,79 @@ function useDashboardData(pollInterval) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const initialLoad = useRef(true);
+  const hostState = useRef(new Map());
+  const controllerRef = useRef(null);
+  const fallbackTimerRef = useRef(null);
+  const eventSourceRef = useRef(null);
+  const reconnectTimerRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
-    let timerId;
-    let controller = new AbortController();
+    const fallbackInterval = Math.max(Number(pollInterval) || 0, 60000);
 
-    async function load() {
+    const applyRawHosts = (rawHosts) => {
+      const normalized = rawHosts && typeof rawHosts === 'object' ? rawHosts : {};
+      hostState.current = new Map(Object.entries(normalized));
+      setHosts(transformHosts(normalized));
       if (initialLoad.current) {
+        setLoading(false);
+        initialLoad.current = false;
+      }
+    };
+
+    const applyUpdatePayload = (payload) => {
+      const current = new Map(hostState.current);
+      if (payload?.updates && typeof payload.updates === 'object') {
+        for (const [hostId, entry] of Object.entries(payload.updates)) {
+          current.set(hostId, entry);
+        }
+      }
+      if (Array.isArray(payload?.removed)) {
+        for (const hostId of payload.removed) {
+          current.delete(hostId);
+        }
+      }
+
+      hostState.current = current;
+      setHosts(transformHosts(Object.fromEntries(current)));
+      if (initialLoad.current) {
+        setLoading(false);
+        initialLoad.current = false;
+      }
+    };
+
+    const clearFallbackTimer = () => {
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+    };
+
+    const scheduleFallbackFetch = () => {
+      clearFallbackTimer();
+      fallbackTimerRef.current = setTimeout(() => {
+        performFetch({ showLoading: false, scheduleNext: true });
+      }, fallbackInterval);
+      if (typeof fallbackTimerRef.current?.unref === 'function') {
+        fallbackTimerRef.current.unref();
+      }
+    };
+
+    const performFetch = async ({ showLoading, scheduleNext } = {}) => {
+      if (cancelled) {
+        return;
+      }
+
+      if (showLoading && initialLoad.current) {
         setLoading(true);
       }
 
-      controller.abort();
-      controller = new AbortController();
+      if (controllerRef.current) {
+        controllerRef.current.abort();
+      }
+
+      const controller = new AbortController();
+      controllerRef.current = controller;
 
       try {
         const response = await fetch('/api/v1/supervisors', {
@@ -110,7 +170,7 @@ function useDashboardData(pollInterval) {
           return;
         }
 
-        setHosts(transformHosts(payload?.data));
+        applyRawHosts(payload?.data);
         setError(null);
       } catch (err) {
         if (cancelled || err.name === 'AbortError') {
@@ -118,25 +178,87 @@ function useDashboardData(pollInterval) {
         }
         setError(err.message ?? 'Failed to load dashboard data.');
       } finally {
+        if (scheduleNext && !cancelled) {
+          scheduleFallbackFetch();
+        }
+      }
+    };
+
+    const clearReconnectTimer = () => {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+    };
+
+    const startStream = () => {
+      if (cancelled) {
+        return;
+      }
+
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+
+      const source = new EventSource('/api/v1/supervisors/stream');
+      eventSourceRef.current = source;
+
+      source.onopen = () => {
+        setError(null);
+      };
+
+      source.addEventListener('snapshot', (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          applyRawHosts(payload);
+          setError(null);
+        } catch (err) {
+          setError('Received malformed supervisor snapshot.');
+        }
+      });
+
+      source.addEventListener('update', (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          applyUpdatePayload(payload);
+          setError(null);
+        } catch (err) {
+          setError('Received malformed supervisor update.');
+        }
+      });
+
+      source.onerror = () => {
         if (cancelled) {
           return;
         }
-        if (initialLoad.current) {
-          setLoading(false);
-          initialLoad.current = false;
-        }
-        timerId = setTimeout(load, pollInterval);
-      }
-    }
 
-    load();
+        setError((current) => current ?? 'Reconnecting to supervisor stream…');
+
+        if (source.readyState === EventSource.CLOSED && !reconnectTimerRef.current) {
+          reconnectTimerRef.current = setTimeout(() => {
+            reconnectTimerRef.current = null;
+            startStream();
+          }, 3000);
+        }
+      };
+    };
+
+    performFetch({ showLoading: true, scheduleNext: true });
+    startStream();
 
     return () => {
       cancelled = true;
-      if (timerId) {
-        clearTimeout(timerId);
+      if (controllerRef.current) {
+        controllerRef.current.abort();
+        controllerRef.current = null;
       }
-      controller.abort();
+      clearFallbackTimer();
+      clearReconnectTimer();
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
     };
   }, [pollInterval]);
 
