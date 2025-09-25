@@ -159,6 +159,106 @@ const dashboardConfig = createDashboardConfig({
   manifestList: parsedEnv.DASHBOARD_MANIFESTS
 });
 
+class HostCache {
+  constructor({ overrides, refreshIntervalMs }) {
+    this.#overrides = new Map();
+    for (const [key, value] of overrides.entries()) {
+      this.#overrides.set(String(key), freezeHostOverride(value));
+    }
+    this.#hosts = new Map();
+    this.defaultRefreshIntervalMs = refreshIntervalMs;
+    this.lastRefreshedAt = null;
+  }
+
+  async warm(db) {
+    return this.refresh(db);
+  }
+
+  async refresh(db) {
+    try {
+      const rows = await db('hosts')
+        .leftJoin('groups', 'hosts.idGroup', 'groups.idGroup')
+        .select('hosts.idHost', 'hosts.idGroup', 'hosts.Name', 'hosts.Url', 'groups.Name as GroupName');
+
+      const next = new Map();
+      for (const row of rows) {
+        const id = String(row.idHost);
+        const override = this.#overrides.get(id);
+        const hostRecord = this.#buildHostRecord(row, override);
+        next.set(id, hostRecord);
+      }
+
+      this.#hosts = next;
+      this.lastRefreshedAt = new Date();
+      return this.toObject();
+    } catch (err) {
+      this.#hosts = new Map();
+      throw err;
+    }
+  }
+
+  getAll() {
+    return Array.from(this.#hosts.values());
+  }
+
+  get(hostId) {
+    return this.#hosts.get(String(hostId)) ?? null;
+  }
+
+  has(hostId) {
+    return this.#hosts.has(String(hostId));
+  }
+
+  toObject() {
+    return Object.fromEntries(this.#hosts);
+  }
+
+  getOverride(hostId) {
+    const override = this.#overrides.get(String(hostId));
+    if (!override) {
+      return null;
+    }
+
+    return cloneOverride(override);
+  }
+
+  scheduleRefresh(db, options = {}) {
+    const intervalMs = options.intervalMs ?? this.defaultRefreshIntervalMs;
+    if (!intervalMs || intervalMs <= 0) {
+      return () => {};
+    }
+
+    const logger = options.logger ?? console;
+    const timer = setInterval(() => {
+      this.refresh(db).catch((err) => {
+        logger.error('Failed to refresh host cache', err);
+      });
+    }, intervalMs);
+
+    if (typeof timer.unref === 'function') {
+      timer.unref();
+    }
+
+    return () => clearInterval(timer);
+  }
+
+  #buildHostRecord(row, override) {
+    const normalized = {
+      idHost: row.idHost,
+      idGroup: row.idGroup ?? null,
+      Name: override?.Name ?? row.Name,
+      Url: override?.Url ?? row.Url,
+      GroupName: override?.GroupName ?? row.GroupName ?? null,
+      override: override ? cloneOverride(override) : null
+    };
+
+    return Object.freeze(normalized);
+  }
+
+  #hosts;
+  #overrides;
+}
+
 const hostOverrides = readHostOverrides(process.env);
 const hostCache = new HostCache({
   overrides: hostOverrides,
@@ -333,106 +433,6 @@ function filterUndefined(record) {
   return Object.fromEntries(
     Object.entries(record).filter(([, value]) => value !== undefined && value !== null)
   );
-}
-
-class HostCache {
-  constructor({ overrides, refreshIntervalMs }) {
-    this.#overrides = new Map();
-    for (const [key, value] of overrides.entries()) {
-      this.#overrides.set(String(key), freezeHostOverride(value));
-    }
-    this.#hosts = new Map();
-    this.defaultRefreshIntervalMs = refreshIntervalMs;
-    this.lastRefreshedAt = null;
-  }
-
-  async warm(db) {
-    return this.refresh(db);
-  }
-
-  async refresh(db) {
-    try {
-      const rows = await db('hosts')
-        .leftJoin('groups', 'hosts.idGroup', 'groups.idGroup')
-        .select('hosts.idHost', 'hosts.idGroup', 'hosts.Name', 'hosts.Url', 'groups.Name as GroupName');
-
-      const next = new Map();
-      for (const row of rows) {
-        const id = String(row.idHost);
-        const override = this.#overrides.get(id);
-        const hostRecord = this.#buildHostRecord(row, override);
-        next.set(id, hostRecord);
-      }
-
-      this.#hosts = next;
-      this.lastRefreshedAt = new Date();
-      return this.toObject();
-    } catch (err) {
-      this.#hosts = new Map();
-      throw err;
-    }
-  }
-
-  getAll() {
-    return Array.from(this.#hosts.values());
-  }
-
-  get(hostId) {
-    return this.#hosts.get(String(hostId)) ?? null;
-  }
-
-  has(hostId) {
-    return this.#hosts.has(String(hostId));
-  }
-
-  toObject() {
-    return Object.fromEntries(this.#hosts);
-  }
-
-  getOverride(hostId) {
-    const override = this.#overrides.get(String(hostId));
-    if (!override) {
-      return null;
-    }
-
-    return cloneOverride(override);
-  }
-
-  scheduleRefresh(db, options = {}) {
-    const intervalMs = options.intervalMs ?? this.defaultRefreshIntervalMs;
-    if (!intervalMs || intervalMs <= 0) {
-      return () => {};
-    }
-
-    const logger = options.logger ?? console;
-    const timer = setInterval(() => {
-      this.refresh(db).catch((err) => {
-        logger.error('Failed to refresh host cache', err);
-      });
-    }, intervalMs);
-
-    if (typeof timer.unref === 'function') {
-      timer.unref();
-    }
-
-    return () => clearInterval(timer);
-  }
-
-  #buildHostRecord(row, override) {
-    const normalized = {
-      idHost: row.idHost,
-      idGroup: row.idGroup ?? null,
-      Name: override?.Name ?? row.Name,
-      Url: override?.Url ?? row.Url,
-      GroupName: override?.GroupName ?? row.GroupName ?? null,
-      override: override ? cloneOverride(override) : null
-    };
-
-    return Object.freeze(normalized);
-  }
-
-  #hosts;
-  #overrides;
 }
 
 function freezeHostOverride(override) {
