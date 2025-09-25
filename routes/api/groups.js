@@ -1,7 +1,9 @@
 import { Router } from 'express';
+import { z } from 'zod';
 
 import { assertSessionAdmin } from '../../server/session.js';
-import { ServiceError } from '../../services/errors.js';
+import { validateRequest } from '../middleware/validation.js';
+import { handleRouteError, sendError } from './utils.js';
 
 /** @typedef {import('../../server/types.js').ServerContext} ServerContext */
 
@@ -17,109 +19,110 @@ export function createGroupsApi(context) {
       const groups = await groupRepository.listGroups();
       res.json({ status: 'success', data: groups });
     } catch (err) {
-      handleError(res, err);
+      handleRouteError(res, err);
     }
   });
 
-  router.post('/', async (req, res) => {
-    try {
-      assertSessionAdmin(req.session);
-      const { name } = req.body ?? {};
-      if (!name) {
-        res.status(400).json({ status: 'error', error: { message: 'Name is required.' } });
-        return;
-      }
+  router.post(
+    '/',
+    validateRequest({ body: groupPayloadSchema }),
+    async (req, res) => {
+      try {
+        assertSessionAdmin(req.session);
+        const payload = req.validated.body;
 
-      const created = await groupRepository.createGroup({ name: String(name).trim() });
-      res.status(201).json({ status: 'success', data: created });
-    } catch (err) {
-      handleError(res, err);
+        const created = await groupRepository.createGroup(payload);
+        res.status(201).json({ status: 'success', data: created });
+      } catch (err) {
+        handleRouteError(res, err);
+      }
     }
-  });
+  );
 
-  router.get('/:id', async (req, res) => {
-    try {
-      assertSessionAdmin(req.session);
-      const id = parseId(req.params.id);
-      if (id == null) {
-        res.status(400).json({ status: 'error', error: { message: 'Invalid group id.' } });
-        return;
+  router.get(
+    '/:id',
+    validateRequest({ params: groupIdParamsSchema }),
+    async (req, res) => {
+      try {
+        assertSessionAdmin(req.session);
+        const { id } = req.validated.params;
+
+        const group = await groupRepository.getGroupById(id);
+        if (!group) {
+          sendError(res, 404, 'Group not found.');
+          return;
+        }
+
+        res.json({ status: 'success', data: group });
+      } catch (err) {
+        handleRouteError(res, err);
       }
-
-      const group = await groupRepository.getGroupById(id);
-      if (!group) {
-        res.status(404).json({ status: 'error', error: { message: 'Group not found.' } });
-        return;
-      }
-
-      res.json({ status: 'success', data: group });
-    } catch (err) {
-      handleError(res, err);
     }
-  });
+  );
 
-  router.put('/:id', async (req, res) => {
-    try {
-      assertSessionAdmin(req.session);
-      const id = parseId(req.params.id);
-      if (id == null) {
-        res.status(400).json({ status: 'error', error: { message: 'Invalid group id.' } });
-        return;
+  router.put(
+    '/:id',
+    validateRequest({ params: groupIdParamsSchema, body: groupPayloadSchema }),
+    async (req, res) => {
+      try {
+        assertSessionAdmin(req.session);
+        const { id } = req.validated.params;
+        const payload = req.validated.body;
+
+        const updated = await groupRepository.updateGroup(id, payload);
+        if (!updated) {
+          sendError(res, 404, 'Group not found.');
+          return;
+        }
+
+        res.json({ status: 'success', data: updated });
+      } catch (err) {
+        handleRouteError(res, err);
       }
-
-      const { name } = req.body ?? {};
-      if (!name) {
-        res.status(400).json({ status: 'error', error: { message: 'Name is required.' } });
-        return;
-      }
-
-      const updated = await groupRepository.updateGroup(id, { name: String(name).trim() });
-      if (!updated) {
-        res.status(404).json({ status: 'error', error: { message: 'Group not found.' } });
-        return;
-      }
-
-      res.json({ status: 'success', data: updated });
-    } catch (err) {
-      handleError(res, err);
     }
-  });
+  );
 
-  router.delete('/:id', async (req, res) => {
-    try {
-      assertSessionAdmin(req.session);
-      const id = parseId(req.params.id);
-      if (id == null) {
-        res.status(400).json({ status: 'error', error: { message: 'Invalid group id.' } });
-        return;
+  router.delete(
+    '/:id',
+    validateRequest({ params: groupIdParamsSchema }),
+    async (req, res) => {
+      try {
+        assertSessionAdmin(req.session);
+        const { id } = req.validated.params;
+
+        const existing = await groupRepository.getGroupById(id);
+        if (!existing) {
+          sendError(res, 404, 'Group not found.');
+          return;
+        }
+
+        await groupRepository.deleteGroup(id);
+        res.status(204).send();
+      } catch (err) {
+        handleRouteError(res, err);
       }
-
-      const existing = await groupRepository.getGroupById(id);
-      if (!existing) {
-        res.status(404).json({ status: 'error', error: { message: 'Group not found.' } });
-        return;
-      }
-
-      await groupRepository.deleteGroup(id);
-      res.status(204).send();
-    } catch (err) {
-      handleError(res, err);
     }
-  });
+  );
 
   return router;
 }
 
-function parseId(raw) {
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
-}
+const groupPayloadSchema = z.object({
+  name: requiredTrimmedString('Name')
+});
 
-function handleError(res, err) {
-  if (err instanceof ServiceError) {
-    res.status(err.statusCode ?? 500).json({ status: 'error', error: { message: err.message } });
-    return;
-  }
+const groupIdParamsSchema = z.object({
+  id: z.coerce
+    .number({ invalid_type_error: 'Invalid group id.' })
+    .refine((value) => Number.isFinite(value), 'Invalid group id.')
+});
 
-  res.status(500).json({ status: 'error', error: { message: 'Unexpected error' } });
+function requiredTrimmedString(field) {
+  return z.preprocess(
+    (value) => (value === undefined ? value : String(value)),
+    z
+      .string({ required_error: `${field} is required.` })
+      .trim()
+      .min(1, `${field} is required.`)
+  );
 }
