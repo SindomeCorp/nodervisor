@@ -247,11 +247,13 @@ function createDatabaseConfig({
   poolMin,
   poolMax
 }) {
+  const normalizedClient = normalizeClientName(client);
+
   const config = {
-    client
+    client: normalizedClient
   };
 
-  if (client === 'sqlite3') {
+  if (normalizedClient === 'sqlite3') {
     config.connection = { filename };
     config.useNullAsDefault = true;
   } else {
@@ -274,6 +276,24 @@ function createDatabaseConfig({
   }
 
   return config;
+}
+
+function normalizeClientName(client) {
+  if (!client) {
+    return client;
+  }
+
+  const normalized = client.toLowerCase();
+
+  if (normalized === 'mysql') {
+    return 'mysql2';
+  }
+
+  if (normalized === 'postgres' || normalized === 'postgresql') {
+    return 'pg';
+  }
+
+  return client;
 }
 
 function createDashboardConfig({ publicDir, publicPath, entry, manifestList }) {

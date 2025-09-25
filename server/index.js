@@ -12,7 +12,7 @@ const knexsessions = Knex(config.sessionstore);
 const sessionStore = new ConnectSessionKnexStore({
   knex: knexsessions,
   tablename: 'sessions',
-  createTable: true
+  createTable: false
 });
 
 const context = createServerContext({
