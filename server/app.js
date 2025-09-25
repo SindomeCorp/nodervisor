@@ -43,17 +43,18 @@ export function createApp(context) {
   app.use(cookieParser());
   app.use(
     session({
-      secret: config.sessionSecret,
+      name: config.session.name,
+      secret: config.session.secret,
       resave: false,
       saveUninitialized: false,
-      cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 },
+      cookie: config.session.cookie,
       store: sessionStore
     })
   );
   app.use(stylus.middleware(path.join(projectRoot, 'public')));
   app.use(express.static(path.join(projectRoot, 'public')));
 
-  app.locals.dashboardAssets = loadDashboardAssets();
+  app.locals.dashboardAssets = loadDashboardAssets(config.dashboard);
 
   if (app.get('env') === 'development') {
     app.use(errorhandler());
@@ -65,28 +66,39 @@ export function createApp(context) {
   return app;
 }
 
-function loadDashboardAssets() {
-  const dashboardDir = path.join(projectRoot, 'public', 'dashboard');
-  const manifestCandidates = [
-    path.join(dashboardDir, 'manifest.json'),
-    path.join(dashboardDir, '.vite', 'manifest.json')
-  ];
+function loadDashboardAssets(dashboardConfig) {
+  if (!dashboardConfig) {
+    return null;
+  }
+
+  const manifestCandidates = dashboardConfig.manifestFiles.map((file) =>
+    path.isAbsolute(file) ? file : path.join(dashboardConfig.publicDir, file)
+  );
 
   for (const manifestPath of manifestCandidates) {
     try {
       const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-      const entry = manifest['src/main.jsx'] ?? manifest['main.jsx'];
+      const entryCandidates = [dashboardConfig.entry, 'src/main.jsx', 'main.jsx'].filter(
+        Boolean
+      );
+      const entry = entryCandidates.reduce((result, candidate) => {
+        if (result) {
+          return result;
+        }
+
+        return candidate && manifest[candidate] ? manifest[candidate] : null;
+      }, null);
 
       if (!entry) {
         return null;
       }
 
       const css = Array.isArray(entry.css)
-        ? entry.css.map((href) => `/dashboard/${href}`)
+        ? entry.css.map((href) => toDashboardAssetPath(dashboardConfig.publicPath, href))
         : [];
 
       return {
-        js: `/dashboard/${entry.file}`,
+        js: toDashboardAssetPath(dashboardConfig.publicPath, entry.file),
         css
       };
     } catch (err) {
@@ -100,4 +112,17 @@ function loadDashboardAssets() {
   }
 
   return null;
+}
+
+function toDashboardAssetPath(publicPath, assetPath) {
+  if (!assetPath) {
+    return null;
+  }
+
+  const normalizedAsset = assetPath.replace(/^\/+/, '');
+  const normalizedPublicPath = publicPath.endsWith('/')
+    ? publicPath.slice(0, -1)
+    : publicPath;
+
+  return `${normalizedPublicPath}/${normalizedAsset}`;
 }

@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 import request from 'supertest';
 import session from 'express-session';
 import bcrypt from 'bcrypt';
@@ -65,8 +67,11 @@ function createMockSupervisordClient() {
 async function createTestApp({ userRole = 'Admin' } = {}) {
   const host = {
     idHost: 'alpha',
+    idGroup: null,
     Name: 'Test Host',
-    Url: 'http://host-1'
+    Url: 'http://host-1',
+    GroupName: null,
+    override: null
   };
 
   const userRecord = {
@@ -103,16 +108,68 @@ async function createTestApp({ userRole = 'Admin' } = {}) {
     })
   };
 
-  const context = {
-    config: {
-      port: 3000,
+  const hostCache = {
+    warm: jest.fn(),
+    refresh: jest.fn(),
+    scheduleRefresh: jest.fn(() => () => {}),
+    get: jest.fn((id) => (String(id) === String(host.idHost) ? host : null)),
+    getAll: jest.fn(() => [host]),
+    toObject: jest.fn(() => ({ [host.idHost]: host })),
+    getOverride: jest.fn()
+  };
+
+  const sessionConfig = {
+    name: 'test.sid',
+    secret: 'test-secret',
+    cookie: {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 86_400_000
+    }
+  };
+
+  const supervisordConfig = {
+    defaults: {
+      protocol: 'http',
       host: '127.0.0.1',
-      env: 'test',
-      sessionSecret: 'test-secret',
-      hosts: {
-        [host.idHost]: host
-      }
+      port: 9001
     },
+    buildTarget: jest.fn((hostRecord) => hostRecord.Url)
+  };
+  supervisordConfig.createClient = jest.fn((api, hostRecord) =>
+    api.connect(supervisordConfig.buildTarget(hostRecord))
+  );
+
+  const config = {
+    port: 3000,
+    host: '127.0.0.1',
+    env: 'test',
+    sessionSecret: sessionConfig.secret,
+    session: sessionConfig,
+    dashboard: {
+      publicDir: path.join(process.cwd(), 'public', 'dashboard'),
+      publicPath: '/dashboard',
+      entry: 'src/main.jsx',
+      manifestFiles: []
+    },
+    supervisord: supervisordConfig,
+    hostCache,
+    warmHosts: hostCache.warm,
+    refreshHosts: hostCache.refresh,
+    scheduleHostRefresh: hostCache.scheduleRefresh,
+    getHostOverride: hostCache.getOverride
+  };
+
+  Object.defineProperty(config, 'hosts', {
+    get() {
+      return hostCache.toObject();
+    }
+  });
+
+  const context = {
+    config,
     db,
     supervisordapi,
     sessionStore: new session.MemoryStore()

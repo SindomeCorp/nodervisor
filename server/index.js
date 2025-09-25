@@ -26,10 +26,35 @@ const app = createApp(context);
 
 async function start() {
   try {
-    await context.config.readHosts(context.db);
-    app.listen(app.get('port'), app.get('host'), () => {
+    await context.config.warmHosts(context.db);
+
+    const stopHostRefresh = context.config.scheduleHostRefresh(context.db, { logger: console });
+    const refreshSignals = ['SIGHUP', 'SIGUSR2'];
+
+    const handleRefreshSignal = async (signal) => {
+      try {
+        await context.config.refreshHosts(context.db);
+        console.log(`Host cache refreshed after ${signal}`);
+      } catch (refreshErr) {
+        console.error(`Failed to refresh host cache after ${signal}`, refreshErr);
+      }
+    };
+
+    refreshSignals.forEach((signal) => {
+      process.on(signal, handleRefreshSignal);
+    });
+
+    const server = app.listen(app.get('port'), app.get('host'), () => {
       console.log(`Nodervisor launched on ${app.get('host')}:${app.get('port')}`);
     });
+
+    const shutdown = () => {
+      stopHostRefresh();
+      server.close(() => process.exit(0));
+    };
+
+    process.once('SIGINT', shutdown);
+    process.once('SIGTERM', shutdown);
   } catch (err) {
     console.error('Failed to start Nodervisor', err);
     process.exit(1);
