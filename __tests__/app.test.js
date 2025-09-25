@@ -84,24 +84,24 @@ async function createTestApp({ userRole = 'Admin' } = {}) {
 
   const userRepository = {
     findByEmail: jest.fn(async (email) => (email === userRecord.email ? userRecord : null)),
-    listUsers: jest.fn(async () => []),
-    getUserById: jest.fn(async () => null),
+    listUsers: jest.fn().mockResolvedValue([]),
+    getUserById: jest.fn().mockResolvedValue(null),
     createUser: jest.fn(),
     updateUser: jest.fn(),
     deleteUser: jest.fn()
   };
 
   const hostRepository = {
-    listHosts: jest.fn(async () => []),
-    getHostById: jest.fn(async () => null),
+    listHosts: jest.fn().mockResolvedValue([]),
+    getHostById: jest.fn().mockResolvedValue(null),
     createHost: jest.fn(),
     updateHost: jest.fn(),
     deleteHost: jest.fn()
   };
 
   const groupRepository = {
-    listGroups: jest.fn(async () => []),
-    getGroupById: jest.fn(async () => null),
+    listGroups: jest.fn().mockResolvedValue([]),
+    getGroupById: jest.fn().mockResolvedValue(null),
     createGroup: jest.fn(),
     updateGroup: jest.fn(),
     deleteGroup: jest.fn()
@@ -193,10 +193,8 @@ async function createTestApp({ userRole = 'Admin' } = {}) {
   };
 
   const app = createApp(context);
-  app.engine('ejs', (_filePath, _options, callback) => callback(null, ''));
-  app.set('view engine', 'ejs');
 
-  return { app, client, host, userRecord, userRepository };
+  return { app, client, host, userRecord, userRepository, hostRepository, groupRepository, hostCache, context };
 }
 
 async function login(agent, email = TEST_EMAIL, password = TEST_PASSWORD) {
@@ -312,5 +310,75 @@ describe('Nodervisor application', () => {
       status: 'success',
       data: ['', 0, false]
     });
+  });
+
+  it('returns hosts via the JSON API', async () => {
+    const { app, hostRepository } = await createTestApp();
+    const agent = request.agent(app);
+
+    await login(agent);
+
+    const hosts = [{ id: 5, name: 'API Host', url: 'http://api-host', groupId: null, groupName: null }];
+    hostRepository.listHosts.mockResolvedValueOnce(hosts);
+
+    const response = await agent.get('/api/v1/hosts');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ status: 'success', data: hosts });
+  });
+
+  it('creates and deletes hosts through the API', async () => {
+    const { app, hostRepository, hostCache } = await createTestApp();
+    const agent = request.agent(app);
+
+    await login(agent);
+
+    hostRepository.createHost.mockImplementation(async (payload) => ({ id: 6, ...payload }));
+    hostRepository.getHostById.mockResolvedValueOnce({ id: 6, name: 'To Remove', url: 'http://remove', groupId: null });
+
+    const createResponse = await agent.post('/api/v1/hosts').send({ name: 'New Host', url: 'http://new-host' });
+    expect(createResponse.status).toBe(201);
+    expect(hostRepository.createHost).toHaveBeenCalledWith({ name: 'New Host', url: 'http://new-host', groupId: null });
+    expect(hostCache.refresh).toHaveBeenCalled();
+
+    const deleteResponse = await agent.delete('/api/v1/hosts/6');
+    expect(deleteResponse.status).toBe(204);
+    expect(hostRepository.deleteHost).toHaveBeenCalledWith(6);
+    expect(hostCache.refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it('updates groups through the API', async () => {
+    const { app, groupRepository } = await createTestApp();
+    const agent = request.agent(app);
+
+    await login(agent);
+
+    groupRepository.getGroupById.mockResolvedValue({ id: 3, name: 'Staging' });
+    groupRepository.updateGroup.mockResolvedValue({ id: 3, name: 'Production' });
+
+    const response = await agent.put('/api/v1/groups/3').send({ name: 'Production' });
+    expect(response.status).toBe(200);
+    expect(groupRepository.updateGroup).toHaveBeenCalledWith(3, { name: 'Production' });
+    expect(response.body).toEqual({ status: 'success', data: { id: 3, name: 'Production' } });
+  });
+
+  it('creates users through the API with hashed passwords', async () => {
+    const { app, userRepository } = await createTestApp();
+    const agent = request.agent(app);
+
+    await login(agent);
+
+    userRepository.createUser.mockImplementation(async (input) => ({ id: 9, ...input, passwordHash: undefined }));
+
+    const response = await agent.post('/api/v1/users').send({
+      name: 'CLI User',
+      email: 'cli@example.test',
+      role: 'User',
+      password: 'temporary'
+    });
+
+    expect(response.status).toBe(201);
+    const payload = userRepository.createUser.mock.calls[0][0];
+    expect(payload).toMatchObject({ name: 'CLI User', email: 'cli@example.test', role: 'User' });
+    expect(await bcrypt.compare('temporary', payload.passwordHash)).toBe(true);
   });
 });

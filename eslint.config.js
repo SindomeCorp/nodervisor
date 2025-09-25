@@ -31,7 +31,7 @@ export default [
   },
   baseConfig,
   {
-    files: ['**/__tests__/**/*.js'],
+    files: ['**/__tests__/**/*.js', '**/__tests__/**/*.jsx'],
     languageOptions: {
       globals: {
         ...globals.jest,

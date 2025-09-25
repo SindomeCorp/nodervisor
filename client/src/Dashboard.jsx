@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import './dashboard.css';
 
 const STATUS_ORDER = ['CONERR', 'FATAL', 'EXITED', 'STARTING', 'RUNNING', 'STOPPED', 'BACKOFF'];
 const STATUS_META = {
@@ -104,7 +103,7 @@ function useDashboardData(pollInterval) {
       controller = new AbortController();
 
       try {
-        const response = await fetch('/ajax/supervisord', {
+        const response = await fetch('/api/v1/supervisors', {
           headers: { Accept: 'application/json' },
           signal: controller.signal,
           credentials: 'same-origin'
@@ -119,7 +118,7 @@ function useDashboardData(pollInterval) {
           return;
         }
 
-        setHosts(transformHosts(payload));
+        setHosts(transformHosts(payload?.data));
         setError(null);
       } catch (err) {
         if (cancelled || err.name === 'AbortError') {
@@ -169,7 +168,7 @@ function HostCard({ host, processes }) {
   );
 }
 
-export default function DashboardApp() {
+export default function Dashboard() {
   const { hosts, error, loading } = useDashboardData(10000);
   const rows = useMemo(() => chunkHosts(hosts, 6), [hosts]);
 
