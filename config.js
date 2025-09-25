@@ -118,28 +118,41 @@ const sessionCookieMaxAge = parsedEnv.SESSION_COOKIE_MAX_AGE ?? 7 * 24 * 60 * 60
 const sessionCookieDomain = parsedEnv.SESSION_COOKIE_DOMAIN;
 const sessionCookieName = parsedEnv.SESSION_COOKIE_NAME ?? 'nv.sid';
 
+const defaultDbFilename = path.join(projectRoot, 'nodervisor.sqlite');
+const dbClient = parsedEnv.DB_CLIENT ?? 'sqlite3';
+const dbFilename = parsedEnv.DB_FILENAME ?? defaultDbFilename;
+const dbHost = parsedEnv.DB_HOST;
+const dbPort = parsedEnv.DB_PORT;
+const dbName = parsedEnv.DB_NAME;
+const dbUser = parsedEnv.DB_USER;
+const dbPassword = parsedEnv.DB_PASSWORD;
+const dbPoolMin = parsedEnv.DB_POOL_MIN;
+const dbPoolMax = parsedEnv.DB_POOL_MAX;
+
 const dbConfig = createDatabaseConfig({
-  client: parsedEnv.DB_CLIENT ?? 'sqlite3',
-  filename: parsedEnv.DB_FILENAME ?? path.join(projectRoot, 'nodervisor.sqlite'),
-  host: parsedEnv.DB_HOST,
-  port: parsedEnv.DB_PORT,
-  database: parsedEnv.DB_NAME,
-  user: parsedEnv.DB_USER,
-  password: parsedEnv.DB_PASSWORD,
-  poolMin: parsedEnv.DB_POOL_MIN,
-  poolMax: parsedEnv.DB_POOL_MAX
+  client: dbClient,
+  filename: dbFilename,
+  host: dbHost,
+  port: dbPort,
+  database: dbName,
+  user: dbUser,
+  password: dbPassword,
+  poolMin: dbPoolMin,
+  poolMax: dbPoolMax
 });
 
+const sessionClient = parsedEnv.SESSION_DB_CLIENT ?? dbClient;
 const sessionDbConfig = createDatabaseConfig({
-  client: parsedEnv.SESSION_DB_CLIENT ?? 'sqlite3',
-  filename: parsedEnv.SESSION_DB_FILENAME ?? path.join(projectRoot, 'nv-sessions.sqlite'),
-  host: parsedEnv.SESSION_DB_HOST,
-  port: parsedEnv.SESSION_DB_PORT,
-  database: parsedEnv.SESSION_DB_NAME,
-  user: parsedEnv.SESSION_DB_USER,
-  password: parsedEnv.SESSION_DB_PASSWORD,
-  poolMin: parsedEnv.SESSION_DB_POOL_MIN,
-  poolMax: parsedEnv.SESSION_DB_POOL_MAX
+  client: sessionClient,
+  filename:
+    parsedEnv.SESSION_DB_FILENAME ?? (sessionClient === 'sqlite3' ? dbFilename : undefined),
+  host: parsedEnv.SESSION_DB_HOST ?? dbHost,
+  port: parsedEnv.SESSION_DB_PORT ?? dbPort,
+  database: parsedEnv.SESSION_DB_NAME ?? dbName,
+  user: parsedEnv.SESSION_DB_USER ?? dbUser,
+  password: parsedEnv.SESSION_DB_PASSWORD ?? dbPassword,
+  poolMin: parsedEnv.SESSION_DB_POOL_MIN ?? dbPoolMin,
+  poolMax: parsedEnv.SESSION_DB_POOL_MAX ?? dbPoolMax
 });
 
 const supervisordDefaults = {
