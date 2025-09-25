@@ -9,10 +9,22 @@ import { logout } from './logout.js';
 import { supervisord } from './supervisord.js';
 import { users } from './users.js';
 import { ServiceError, SupervisordService } from '../services/supervisordService.js';
+import {
+  assertSessionAdmin,
+  assertSessionAuthenticated
+} from '../server/session.js';
 
-export function createRouter(params) {
+/** @typedef {import('../server/types.js').ServerContext} ServerContext */
+
+/**
+ * Builds the root router for the application, binding individual route
+ * factories to the shared server context.
+ *
+ * @param {ServerContext} context
+ */
+export function createRouter(context) {
   const router = Router();
-  const supervisordService = new SupervisordService(params);
+  const supervisordService = new SupervisordService(context);
 
   const respondSuccess = (res, data, status = 200) =>
     res.status(status).json({ status: 'success', data });
@@ -37,71 +49,57 @@ export function createRouter(params) {
     }
   };
 
-  const ensureLoggedIn = (req) => {
-    if (!req.session?.loggedIn) {
-      throw new ServiceError('Not authenticated', 401);
-    }
-  };
-
-  const ensureAdmin = (req) => {
-    ensureLoggedIn(req);
-
-    if (req.session.user?.Role !== 'Admin') {
-      throw new ServiceError('Insufficient privileges', 403);
-    }
-  };
-
   const parseNumber = (value, fallback) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
   };
 
-  router.get('/', supervisord());
-  router.get('/dashboard', dashboard());
+  router.get('/', supervisord(context));
+  router.get('/dashboard', dashboard(context));
 
   router
     .route('/hosts')
-    .get(hosts(params))
-    .post(hosts(params));
+    .get(hosts(context))
+    .post(hosts(context));
 
   router
     .route('/host/:idHost')
-    .get(hosts(params))
-    .post(hosts(params));
+    .get(hosts(context))
+    .post(hosts(context));
 
   router
     .route('/groups')
-    .get(groups(params))
-    .post(groups(params));
+    .get(groups(context))
+    .post(groups(context));
 
   router
     .route('/group/:idGroup')
-    .get(groups(params))
-    .post(groups(params));
+    .get(groups(context))
+    .post(groups(context));
 
   router
     .route('/users')
-    .get(users(params))
-    .post(users(params));
+    .get(users(context))
+    .post(users(context));
 
   router
     .route('/user/:idUser')
-    .get(users(params))
-    .post(users(params));
+    .get(users(context))
+    .post(users(context));
 
   router
     .route('/login')
-    .get(login(params))
-    .post(login(params));
+    .get(login(context))
+    .post(login(context));
 
-  router.get('/logout', logout());
+  router.get('/logout', logout(context));
 
-  router.get('/log/:host/:process/:type', log(params));
+  router.get('/log/:host/:process/:type', log(context));
 
   router.get(
     '/api/v1/supervisors',
     handleRoute(async (req, res) => {
-      ensureLoggedIn(req);
+      assertSessionAuthenticated(req.session);
       const data = await supervisordService.fetchAllProcessInfo();
       respondSuccess(res, data);
     })
@@ -110,7 +108,7 @@ export function createRouter(params) {
   router.post(
     '/api/v1/supervisors/control',
     handleRoute(async (req, res) => {
-      ensureAdmin(req);
+      assertSessionAdmin(req.session);
       const { host, process, action } = req.body ?? {};
       const result = await supervisordService.controlProcess({
         hostId: host,
@@ -124,7 +122,7 @@ export function createRouter(params) {
   router.get(
     '/api/v1/supervisors/logs',
     handleRoute(async (req, res) => {
-      ensureAdmin(req);
+      assertSessionAdmin(req.session);
       const { host, process, type, offset, length } = req.query;
       const data = await supervisordService.getProcessLog({
         hostId: host,
@@ -140,7 +138,7 @@ export function createRouter(params) {
   router.post(
     '/api/v1/supervisors/logs/clear',
     handleRoute(async (req, res) => {
-      ensureAdmin(req);
+      assertSessionAdmin(req.session);
       const { host, process } = req.body ?? {};
       const data = await supervisordService.getProcessLog({
         hostId: host,

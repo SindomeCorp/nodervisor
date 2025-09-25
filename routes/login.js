@@ -4,11 +4,20 @@
 
 import bcrypt from 'bcrypt';
 
-export function login(params) {
-  const { db } = params;
+import { isSessionAuthenticated } from '../server/session.js';
+
+/** @typedef {import('../server/types.js').ServerContext} ServerContext */
+/** @typedef {import('../server/types.js').RequestSession} RequestSession */
+
+/**
+ * @param {ServerContext} context
+ * @returns {import('../server/types.js').RequestHandler}
+ */
+export function login(context) {
+  const { db } = context;
   return async function (req, res, next) {
     try {
-      if (req.session.loggedIn) {
+      if (isSessionAuthenticated(req.session)) {
         return res.redirect('/');
       }
 
@@ -22,16 +31,18 @@ export function login(params) {
         if (user) {
           const passwordMatch = await bcrypt.compare(req.body.password, user.Password);
           if (passwordMatch) {
-            req.session.loggedIn = true;
-            req.session.user = user;
+            const session = /** @type {RequestSession} */ (req.session);
+            session.loggedIn = true;
+            session.user = user;
             return res.redirect('/');
           }
         } else {
           error = 'Email not found';
         }
 
-        req.session.loggedIn = false;
-        req.session.user = null;
+        const session = /** @type {RequestSession} */ (req.session);
+        session.loggedIn = false;
+        session.user = null;
         return res.render('login', {
           title: 'Nodervisor - Login',
           error

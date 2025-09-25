@@ -4,6 +4,7 @@ import supervisordapi from 'supervisord';
 
 import config from '../config.js';
 import { createApp } from './app.js';
+import { createServerContext } from './context.js';
 
 const db = Knex(config.db);
 const knexsessions = Knex(config.sessionstore);
@@ -14,11 +15,18 @@ const sessionStore = new ConnectSessionKnexStore({
   createTable: true
 });
 
-const app = createApp({ config, db, supervisordapi, sessionStore });
+const context = createServerContext({
+  config,
+  db,
+  supervisordapi,
+  sessionStore
+});
+
+const app = createApp(context);
 
 async function start() {
   try {
-    await config.readHosts(db);
+    await context.config.readHosts(context.db);
     app.listen(app.get('port'), app.get('host'), () => {
       console.log(`Nodervisor launched on ${app.get('host')}:${app.get('port')}`);
     });
