@@ -464,7 +464,8 @@ describe('Nodervisor application', () => {
       status: 'success',
       data: {
         user: null,
-        csrfToken: expect.any(String)
+        csrfToken: expect.any(String),
+        allowSelfRegistration: expect.any(Boolean)
       }
     });
   });

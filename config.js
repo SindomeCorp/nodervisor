@@ -151,7 +151,8 @@ const envSchema = z
     DASHBOARD_ENTRY: z.string().optional(),
     DASHBOARD_MANIFESTS: z.string().optional(),
     HOST_REFRESH_INTERVAL_MS: integerLike(),
-    TRUST_PROXY: trustProxyLike()
+    TRUST_PROXY: trustProxyLike(),
+    AUTH_ALLOW_SELF_REGISTRATION: booleanLike
   })
   .passthrough();
 
@@ -172,6 +173,7 @@ const sessionCookieDomain = parsedEnv.SESSION_COOKIE_DOMAIN;
 const sessionCookieName = parsedEnv.SESSION_COOKIE_NAME ?? 'nv.sid';
 
 const trustProxy = parsedEnv.TRUST_PROXY;
+const authAllowSelfRegistration = parsedEnv.AUTH_ALLOW_SELF_REGISTRATION ?? true;
 
 const defaultDbFilename = path.join(projectRoot, 'nodervisor.sqlite');
 const dbClient = parsedEnv.DB_CLIENT ?? 'sqlite3';
@@ -358,6 +360,9 @@ const config = {
   sessionSecret,
   supervisord,
   dashboard: dashboardConfig,
+  auth: {
+    allowSelfRegistration: authAllowSelfRegistration
+  },
   hostCache,
   getHostOverride(hostId) {
     return hostCache.getOverride(hostId);

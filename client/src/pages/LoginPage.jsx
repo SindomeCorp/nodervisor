@@ -6,7 +6,7 @@ import AuthPageLayout from './AuthPageLayout.jsx';
 import ui from '../styles/ui.module.css';
 
 export default function LoginPage() {
-  const { login } = useSession();
+  const { login, allowSelfRegistration } = useSession();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState('');
@@ -39,9 +39,13 @@ export default function LoginPage() {
     <AuthPageLayout
       title="Sign in"
       footer={
-        <span>
-          Need an account? <Link to="/auth/register">Create one</Link>
-        </span>
+        allowSelfRegistration ? (
+          <span>
+            Need an account? <Link to="/auth/register">Create one</Link>
+          </span>
+        ) : (
+          <span>Need access? Ask an administrator to create an account.</span>
+        )
       }
     >
       {error && (

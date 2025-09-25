@@ -42,6 +42,7 @@ import {
 export const SessionContext = createContext({
   user: null,
   status: 'loading',
+  allowSelfRegistration: true,
   login: async () => {},
   logout: async () => {},
   register: async () => {},
@@ -56,12 +57,18 @@ function SessionProvider({ initialState, children }) {
   const authClient = useMemo(() => createAuthClient(initialState?.auth), [initialState]);
   const [user, setUser] = useState(initialState?.user ?? null);
   const [status, setStatus] = useState(initialState?.user ? 'authenticated' : 'loading');
+  const [allowSelfRegistration, setAllowSelfRegistration] = useState(
+    initialState?.auth?.allowSelfRegistration ?? true
+  );
   const initialFetchCompleted = useRef(Boolean(initialState?.user));
 
   const refreshSession = useCallback(async () => {
     setStatus('loading');
     try {
       const data = await authClient.getSession();
+      if (data && Object.prototype.hasOwnProperty.call(data, 'allowSelfRegistration')) {
+        setAllowSelfRegistration(Boolean(data.allowSelfRegistration));
+      }
       const sessionUser = data?.user ?? null;
       setUser(sessionUser);
       setStatus(sessionUser ? 'authenticated' : 'unauthenticated');
@@ -103,6 +110,9 @@ function SessionProvider({ initialState, children }) {
 
   const register = useCallback(
     async ({ name, email, password }) => {
+      if (!allowSelfRegistration) {
+        throw new Error('Self-registration is disabled.');
+      }
       setStatus('loading');
       try {
         const result = await authClient.register({ name, email, password });
@@ -116,7 +126,7 @@ function SessionProvider({ initialState, children }) {
         throw err;
       }
     },
-    [authClient]
+    [authClient, allowSelfRegistration]
   );
 
   const logout = useCallback(async () => {
@@ -132,8 +142,16 @@ function SessionProvider({ initialState, children }) {
   }, [authClient, user]);
 
   const value = useMemo(
-    () => ({ user, status, login, logout, register, refreshSession }),
-    [user, status, login, logout, register, refreshSession]
+    () => ({
+      user,
+      status,
+      allowSelfRegistration,
+      login,
+      logout,
+      register,
+      refreshSession
+    }),
+    [user, status, allowSelfRegistration, login, logout, register, refreshSession]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
@@ -289,119 +307,131 @@ function RequireGuest({ children }) {
   return children;
 }
 
+function AppRoutes() {
+  const { allowSelfRegistration } = useSession();
+
+  return (
+    <Routes>
+      <Route element={<RequireAuth />}>
+        <Route element={<Layout />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route
+            path="dashboard"
+            element={
+              <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER]}>
+                <Dashboard />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="hosts"
+            element={
+              <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
+                <HostsListPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="hosts/new"
+            element={
+              <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
+                <HostFormPage mode="create" />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="hosts/:hostId"
+            element={
+              <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
+                <HostFormPage mode="edit" />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="groups"
+            element={
+              <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
+                <GroupsListPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="groups/new"
+            element={
+              <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
+                <GroupFormPage mode="create" />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="groups/:groupId"
+            element={
+              <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
+                <GroupFormPage mode="edit" />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="users"
+            element={
+              <RequireRole allowedRoles={[ROLE_ADMIN]}>
+                <UsersListPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="users/new"
+            element={
+              <RequireRole allowedRoles={[ROLE_ADMIN]}>
+                <UserFormPage mode="create" />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="users/:userId"
+            element={
+              <RequireRole allowedRoles={[ROLE_ADMIN]}>
+                <UserFormPage mode="edit" />
+              </RequireRole>
+            }
+          />
+          <Route path="request-access" element={<RequestAccessPage />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Route>
+      </Route>
+      <Route path="auth">
+        <Route index element={<Navigate to="login" replace />} />
+        <Route
+          path="login"
+          element={
+            <RequireGuest>
+              <LoginPage />
+            </RequireGuest>
+          }
+        />
+        {allowSelfRegistration ? (
+          <Route
+            path="register"
+            element={
+              <RequireGuest>
+                <RegisterPage />
+              </RequireGuest>
+            }
+          />
+        ) : (
+          <Route path="register" element={<Navigate to="/auth/login" replace />} />
+        )}
+      </Route>
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  );
+}
+
 export default function App({ initialState }) {
   return (
     <SessionProvider initialState={initialState}>
       <BrowserRouter>
-        <Routes>
-          <Route element={<RequireAuth />}>
-            <Route element={<Layout />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route
-                path="dashboard"
-                element={
-                  <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER]}>
-                    <Dashboard />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="hosts"
-                element={
-                  <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
-                    <HostsListPage />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="hosts/new"
-                element={
-                  <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
-                    <HostFormPage mode="create" />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="hosts/:hostId"
-                element={
-                  <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
-                    <HostFormPage mode="edit" />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="groups"
-                element={
-                  <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
-                    <GroupsListPage />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="groups/new"
-                element={
-                  <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
-                    <GroupFormPage mode="create" />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="groups/:groupId"
-                element={
-                  <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
-                    <GroupFormPage mode="edit" />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="users"
-                element={
-                  <RequireRole allowedRoles={[ROLE_ADMIN]}>
-                    <UsersListPage />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="users/new"
-                element={
-                  <RequireRole allowedRoles={[ROLE_ADMIN]}>
-                    <UserFormPage mode="create" />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="users/:userId"
-                element={
-                  <RequireRole allowedRoles={[ROLE_ADMIN]}>
-                    <UserFormPage mode="edit" />
-                  </RequireRole>
-                }
-              />
-              <Route path="request-access" element={<RequestAccessPage />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Route>
-          </Route>
-          <Route path="auth">
-            <Route index element={<Navigate to="login" replace />} />
-            <Route
-              path="login"
-              element={
-                <RequireGuest>
-                  <LoginPage />
-                </RequireGuest>
-              }
-            />
-            <Route
-              path="register"
-              element={
-                <RequireGuest>
-                  <RegisterPage />
-                </RequireGuest>
-              }
-            />
-          </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
+        <AppRoutes />
       </BrowserRouter>
     </SessionProvider>
   );

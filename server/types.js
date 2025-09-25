@@ -156,6 +156,12 @@ export let SessionConfig;
 export let DashboardConfig;
 
 /**
+ * @typedef {Object} AuthConfig
+ * @property {boolean} allowSelfRegistration
+ */
+export let AuthConfig;
+
+/**
  * @typedef {Object} SupervisordDefaults
  * @property {'http' | 'https'} protocol
  * @property {string} host
@@ -198,6 +204,7 @@ export let HostCache;
  * @property {string} env
  * @property {string} sessionSecret
  * @property {SessionConfig} session
+ * @property {AuthConfig} auth
  * @property {DashboardConfig} dashboard
  * @property {SupervisordConfig} supervisord
  * @property {HostCache} hostCache
