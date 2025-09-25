@@ -5,7 +5,22 @@ import App from './App.jsx';
 import './styles/tokens.css';
 
 const container = document.getElementById('app-root');
-const initialState = window.__APP_STATE__ ?? {};
+
+function getInitialState() {
+  const stateElement = document.getElementById('app-state');
+
+  if (stateElement?.textContent) {
+    try {
+      return JSON.parse(stateElement.textContent);
+    } catch (error) {
+      console.error('Failed to parse initial app state', error);
+    }
+  }
+
+  return window.__APP_STATE__ ?? {};
+}
+
+const initialState = getInitialState();
 
 if (container) {
   const root = createRoot(container);

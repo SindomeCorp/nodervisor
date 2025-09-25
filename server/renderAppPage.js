@@ -43,7 +43,7 @@ export function renderAppPage({ title = 'Nodervisor', dashboardAssets = null, se
   </head>
   <body>
     <div id="app-root"></div>
-    <script>window.__APP_STATE__ = ${serializedState};</script>
+    <script id="app-state" type="application/json">${serializedState}</script>
     ${scripts}
   </body>
 </html>`;
