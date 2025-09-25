@@ -1,24 +1,27 @@
 import { Link } from 'react-router-dom';
 
+import layoutStyles from '../AppLayout.module.css';
+import ui from '../styles/ui.module.css';
+
 export default function AuthPageLayout({ title, children, footer }) {
   return (
-    <div className="auth-layout">
-      <header className="header-container">
-        <div className="header-wrapper">
-          <h1 className="title mb-0">
-            <Link to="/" className="app-brand-link">
+    <div className={layoutStyles.authLayout}>
+      <header className={layoutStyles.headerContainer}>
+        <div className={layoutStyles.headerWrapper}>
+          <h1 className={layoutStyles.headerTitle}>
+            <Link to="/" className={layoutStyles.brandLink}>
               Nodervisor
             </Link>
           </h1>
         </div>
       </header>
-      <main className="auth-main">
-        <div className="card auth-card shadow-sm">
-          <div className="card-body">
-            <h2 className="h4 text-center mb-4">{title}</h2>
+      <main className={layoutStyles.authMain}>
+        <div className={layoutStyles.authCard}>
+          <div className={layoutStyles.authCardBody}>
+            <h2 className={layoutStyles.authTitle}>{title}</h2>
             {children}
           </div>
-          {footer && <div className="card-footer text-center">{footer}</div>}
+          {footer && <div className={`${layoutStyles.authCardFooter} ${ui.textCenter}`}>{footer}</div>}
         </div>
       </main>
     </div>

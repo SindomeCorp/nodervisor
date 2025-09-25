@@ -114,7 +114,7 @@ export function createRouter(context) {
       const heartbeat = setInterval(() => {
         try {
           res.write(': ping\n\n');
-        } catch (err) {
+        } catch {
           abortController.abort();
         }
       }, 15000);
@@ -126,7 +126,7 @@ export function createRouter(context) {
         try {
           res.write(`event: ${event}\n`);
           res.write(`data: ${JSON.stringify(payload)}\n\n`);
-        } catch (err) {
+        } catch {
           abortController.abort();
         }
       };

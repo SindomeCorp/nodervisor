@@ -83,6 +83,16 @@ The session store uses the same connection details by default, but you can overr
 
   At this point, navigating back to the home page should show you a list of your hosts, and the processes running on them.
 
+### Styling the dashboard
+
+The React dashboard is bundled with Vite and no longer relies on the legacy assets that previously lived under `public/css`. Styling is split into a small design system and component-scoped CSS modules:
+
+- `client/src/styles/tokens.css` defines the shared color palette, spacing scale, and typography tokens. It is imported once from `client/src/main.jsx` so the variables are available everywhere.
+- `client/src/styles/ui.module.css` implements reusable primitives (buttons, tables, alerts, forms, etc.). Import the module into a component and compose the exported class names to keep pages consistent.
+- Layout-specific rules live next to their React components (for example, `AppLayout.module.css` and `Dashboard.module.css`).
+
+When adding new UI, prefer composing existing primitives from `ui.module.css`. If you need new global tokens, add them to `tokens.css`; if you need new reusable primitives, extend `ui.module.css`. Running `npm run dev:dashboard` will rebuild CSS automatically as you edit.
+
 ### Screenshots
 
   ![List of hosts with summary](/../screenshots/screenshots/screenshot1.png?raw=true "List of hosts with summary")

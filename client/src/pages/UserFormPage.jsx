@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { requestJson } from '../apiClient.js';
+import ui from '../styles/ui.module.css';
 
 const ROLES = ['Admin', 'User'];
 
@@ -94,51 +95,53 @@ export default function UserFormPage({ mode }) {
 
   return (
     <section aria-labelledby="user-form-heading">
-      <header className="mb-3">
-        <h2 id="user-form-heading">{isEdit ? 'Edit user' : 'Add user'}</h2>
+      <header className={ui.sectionHeader}>
+        <h2 id="user-form-heading" className={ui.pageTitle}>
+          {isEdit ? 'Edit user' : 'Add user'}
+        </h2>
       </header>
       {loading ? (
         <p>Loading…</p>
       ) : (
         <form onSubmit={handleSubmit} noValidate>
           {error && (
-            <div className="alert alert-danger" role="alert">
+            <div className={`${ui.alert} ${ui.alertError}`} role="alert">
               {error}
             </div>
           )}
-          <div className="mb-3">
-            <label className="form-label" htmlFor="name">
+          <div className={ui.formField}>
+            <label className={ui.formLabel} htmlFor="name">
               Name
             </label>
             <input
               id="name"
               name="name"
               type="text"
-              className="form-control"
+              className={ui.formControl}
               value={form.name}
               onChange={handleChange}
               required
             />
           </div>
-          <div className="mb-3">
-            <label className="form-label" htmlFor="email">
+          <div className={ui.formField}>
+            <label className={ui.formLabel} htmlFor="email">
               Email
             </label>
             <input
               id="email"
               name="email"
               type="email"
-              className="form-control"
+              className={ui.formControl}
               value={form.email}
               onChange={handleChange}
               required
             />
           </div>
-          <div className="mb-3">
-            <label className="form-label" htmlFor="role">
+          <div className={ui.formField}>
+            <label className={ui.formLabel} htmlFor="role">
               Role
             </label>
-            <select id="role" name="role" className="form-select" value={form.role} onChange={handleChange}>
+            <select id="role" name="role" className={ui.formControl} value={form.role} onChange={handleChange}>
               {ROLES.map((role) => (
                 <option key={role} value={role}>
                   {role}
@@ -146,31 +149,35 @@ export default function UserFormPage({ mode }) {
               ))}
             </select>
           </div>
-          <div className="mb-3">
-            <label className="form-label" htmlFor="password">
+          <div className={ui.formField}>
+            <label className={ui.formLabel} htmlFor="password">
               Password{isEdit ? ' (leave blank to keep current password)' : ''}
             </label>
             <input
               id="password"
               name="password"
               type="password"
-              className="form-control"
+              className={ui.formControl}
               value={form.password}
               onChange={handleChange}
               aria-describedby="password-help"
               required={!isEdit}
             />
             {isEdit && (
-              <div id="password-help" className="form-text">
+              <div id="password-help" className={ui.formText}>
                 Leave blank to keep the existing password.
               </div>
             )}
           </div>
-          <div className="d-flex gap-2">
-            <button type="submit" className="btn btn-primary" disabled={saving}>
+          <div className={ui.formActions}>
+            <button type="submit" className={`${ui.button} ${ui.buttonPrimary}`} disabled={saving}>
               {saving ? 'Saving…' : 'Save'}
             </button>
-            <button type="button" className="btn btn-secondary" onClick={() => navigate('/users')}>
+            <button
+              type="button"
+              className={`${ui.button} ${ui.buttonSecondary}`}
+              onClick={() => navigate('/users')}
+            >
               Cancel
             </button>
           </div>

@@ -1,0 +1,55 @@
+:root {
+  color-scheme: light;
+  --nv-color-background: #f6f8fa;
+  --nv-color-surface: #ffffff;
+  --nv-color-border: #dce3ed;
+  --nv-color-text: #1b1e2e;
+  --nv-color-text-muted: #5c6c80;
+  --nv-color-primary: #00744a;
+  --nv-color-primary-dark: #005c3a;
+  --nv-color-secondary: #113f52;
+  --nv-color-danger: #c72e1c;
+  --nv-color-danger-surface: #fdeae7;
+  --nv-color-success: #1da13e;
+  --nv-color-warning: #f0b120;
+  --nv-radius-sm: 0.5rem;
+  --nv-radius-md: 0.75rem;
+  --nv-radius-lg: 1rem;
+  --nv-shadow-sm: 0 4px 12px rgba(13, 38, 76, 0.12);
+  --nv-shadow-md: 0 10px 30px rgba(15, 23, 42, 0.12);
+  --nv-shadow-lg: 0 18px 40px rgba(15, 23, 42, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  background-color: var(--nv-color-background);
+  color: var(--nv-color-text);
+  min-height: 100vh;
+  margin: 0;
+}
+
+a {
+  color: var(--nv-color-primary);
+}
+
+a:hover,
+a:focus {
+  color: var(--nv-color-primary-dark);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+code,
+pre {
+  font-family: 'Fira Code', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}

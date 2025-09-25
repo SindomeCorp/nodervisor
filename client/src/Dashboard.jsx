@@ -1,15 +1,80 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import dashboardStyles from './Dashboard.module.css';
+import ui from './styles/ui.module.css';
+
 const STATUS_ORDER = ['CONERR', 'FATAL', 'EXITED', 'STARTING', 'RUNNING', 'STOPPED', 'BACKOFF'];
 const STATUS_META = {
-  CONERR: { className: 'redIcons', icon: 'fa-solid fa-bolt' },
-  FATAL: { className: 'redIcons', icon: 'fa-solid fa-circle-exclamation' },
-  EXITED: { className: 'redIcons', icon: 'fa-solid fa-circle-exclamation' },
-  STARTING: { className: 'goldIcons', icon: 'fa-solid fa-rotate' },
-  RUNNING: { className: 'greenIcons', icon: 'fa-solid fa-circle-check' },
-  STOPPED: { className: 'blueIcons', icon: 'fa-solid fa-circle-minus' },
-  BACKOFF: { className: 'blueIcons', icon: 'fa-solid fa-circle-minus' }
+  CONERR: { tone: 'danger', icon: 'bolt' },
+  FATAL: { tone: 'danger', icon: 'alert' },
+  EXITED: { tone: 'danger', icon: 'alert' },
+  STARTING: { tone: 'warning', icon: 'refresh' },
+  RUNNING: { tone: 'success', icon: 'check' },
+  STOPPED: { tone: 'info', icon: 'pause' },
+  BACKOFF: { tone: 'info', icon: 'pause' }
 };
+
+const STATUS_TONE_CLASS = {
+  danger: dashboardStyles.statusToneDanger,
+  success: dashboardStyles.statusToneSuccess,
+  info: dashboardStyles.statusToneInfo,
+  warning: dashboardStyles.statusToneWarning
+};
+
+function classNames(...values) {
+  return values.filter(Boolean).join(' ');
+}
+
+function StatusIcon({ name, className }) {
+  switch (name) {
+    case 'bolt':
+      return (
+        <svg className={className} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M11.25 2.25a.75.75 0 01.654.37l4.5 7.5a.75.75 0 01-.654 1.13H12v8.5a.75.75 0 01-1.404.36l-4.5-7.5A.75.75 0 016.75 11H10V2.75a.75.75 0 01.75-.75z"
+          />
+        </svg>
+      );
+    case 'alert':
+      return (
+        <svg className={className} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M12 2a10 10 0 1010 10A10 10 0 0012 2zm0 5a1 1 0 01.993.883L13 8v5a1 1 0 01-1.993.117L11 13V8a1 1 0 011-1zm0 9.25a1.25 1.25 0 11-1.25 1.25A1.25 1.25 0 0112 16.25z"
+          />
+        </svg>
+      );
+    case 'refresh':
+      return (
+        <svg className={className} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M3.978 8.223a9 9 0 0114.962-3.74V3.75a.75.75 0 011.5 0v4.5a.75.75 0 01-.75.75h-4.5a.75.75 0 010-1.5h2.385a7.5 7.5 0 10.748 7.105.75.75 0 111.318.75A9 9 0 113.978 8.223z"
+          />
+        </svg>
+      );
+    case 'check':
+      return (
+        <svg className={className} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M12 2a10 10 0 1010 10A10 10 0 0012 2zm4.28 7.22l-5 5a.75.75 0 01-1.06 0l-2-2a.75.75 0 111.06-1.06L11 12.94l4.22-4.22a.75.75 0 111.06 1.06z"
+          />
+        </svg>
+      );
+    case 'pause':
+    default:
+      return (
+        <svg className={className} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M12 2a10 10 0 1010 10A10 10 0 0012 2zm-2.25 5.75a.75.75 0 00-.75.75v7a.75.75 0 001.5 0v-7a.75.75 0 00-.75-.75zm4.5 0a.75.75 0 00-.75.75v7a.75.75 0 001.5 0v-7a.75.75 0 00-.75-.75z"
+          />
+        </svg>
+      );
+  }
+}
 
 function transformHosts(rawHosts) {
   const entries = Object.entries(rawHosts ?? {}).sort(([a], [b]) => a.localeCompare(b));
@@ -269,13 +334,14 @@ function HostCard({ host, processes }) {
   const summary = useMemo(() => summarizeProcesses(processes), [processes]);
   const meta = STATUS_META[summary.status] ?? STATUS_META.CONERR;
   const label = summary.count;
+  const toneClass = STATUS_TONE_CLASS[meta.tone] ?? dashboardStyles.statusToneInfo;
 
   return (
-    <div className="card dashboard-card">
-      <div className="card-body">
-        <h3 className="h5 mb-4">{host?.Name ?? 'Unknown Host'}</h3>
-        <div className={`dashboard-status-label ${meta.className}`}>
-          <i className={`${meta.icon}`} aria-hidden="true"></i>
+    <div className={dashboardStyles.card}>
+      <div className={dashboardStyles.cardBody}>
+        <h3 className={dashboardStyles.cardTitle}>{host?.Name ?? 'Unknown Host'}</h3>
+        <div className={classNames(dashboardStyles.statusLabel, toneClass)}>
+          <StatusIcon name={meta.icon} className={dashboardStyles.statusIcon} />
           <span>{label}</span>
         </div>
       </div>
@@ -288,21 +354,21 @@ export default function Dashboard() {
   const hasHosts = hosts.length > 0;
 
   return (
-    <section className="dashboard-section" aria-labelledby="dashboard-heading">
-      <header className="mb-4">
-        <h2 id="dashboard-heading" className="h4">
+    <section className={dashboardStyles.section} aria-labelledby="dashboard-heading">
+      <header className={ui.sectionHeaderLarge}>
+        <h2 id="dashboard-heading" className={dashboardStyles.sectionTitle}>
           Supervisor overview
         </h2>
       </header>
       {loading && hosts.length === 0 && <p>Loading the latest supervisor information…</p>}
       {error && (
-        <div className="alert alert-danger dashboard-error" role="alert">
+        <div className={`${ui.alert} ${ui.alertError} ${dashboardStyles.error}`} role="alert">
           {error}
         </div>
       )}
       {!hasHosts && !loading && !error && <p>No hosts available.</p>}
       {hasHosts && (
-        <div className="dashboard-grid">
+        <div className={dashboardStyles.grid}>
           {hosts.map((entry, index) => (
             <HostCard
               key={entry.host?.idHost ?? `${entry.host?.Name ?? 'host'}-${index}`}

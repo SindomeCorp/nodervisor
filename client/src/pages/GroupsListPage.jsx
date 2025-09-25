@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { requestJson } from '../apiClient.js';
+import ui from '../styles/ui.module.css';
 
 export default function GroupsListPage() {
   const [groups, setGroups] = useState([]);
@@ -52,26 +53,28 @@ export default function GroupsListPage() {
 
   return (
     <section aria-labelledby="groups-heading">
-      <header className="d-flex justify-content-between align-items-center mb-3">
-        <h2 id="groups-heading">Groups</h2>
-        <Link className="btn btn-primary" to="/groups/new">
+      <header className={ui.pageHeader}>
+        <h2 id="groups-heading" className={ui.pageTitle}>
+          Groups
+        </h2>
+        <Link className={`${ui.button} ${ui.buttonPrimary}`} to="/groups/new">
           Add group
         </Link>
       </header>
       {loading && <p>Loading groups…</p>}
       {error && (
-        <div className="alert alert-danger" role="alert">
+        <div className={`${ui.alert} ${ui.alertError}`} role="alert">
           {error}
         </div>
       )}
       {!loading && groups.length === 0 && <p>No groups defined.</p>}
       {groups.length > 0 && (
-        <div className="table-responsive">
-          <table className="table table-striped">
+        <div className={ui.tableWrapper}>
+          <table className={ui.table}>
             <thead>
               <tr>
                 <th scope="col">Name</th>
-                <th scope="col" className="text-end">
+                <th scope="col" className={ui.tableCellNumeric}>
                   Actions
                 </th>
               </tr>
@@ -80,12 +83,16 @@ export default function GroupsListPage() {
               {groups.map((group) => (
                 <tr key={group.id}>
                   <th scope="row">{group.name}</th>
-                  <td className="text-end">
-                    <div className="btn-group" role="group">
-                      <Link className="btn btn-secondary" to={`/groups/${group.id}`}>
+                  <td className={ui.tableCellNumeric}>
+                    <div className={ui.buttonGroup} role="group">
+                      <Link className={`${ui.button} ${ui.buttonSecondary}`} to={`/groups/${group.id}`}>
                         Edit
                       </Link>
-                      <button type="button" className="btn btn-danger" onClick={() => handleDelete(group.id)}>
+                      <button
+                        type="button"
+                        className={`${ui.button} ${ui.buttonDanger}`}
+                        onClick={() => handleDelete(group.id)}
+                      >
                         Delete
                       </button>
                     </div>

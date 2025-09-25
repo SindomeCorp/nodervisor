@@ -27,6 +27,8 @@ import UserFormPage from './pages/UserFormPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import { createAuthClient } from './apiClient.js';
+import layoutStyles from './AppLayout.module.css';
+import ui from './styles/ui.module.css';
 
 export const SessionContext = createContext({
   user: null,
@@ -130,10 +132,10 @@ function SessionProvider({ initialState, children }) {
 
 function LoadingView({ message = 'Loading…' }) {
   return (
-    <div className="d-flex justify-content-center py-5">
-      <div className="text-center">
-        <div className="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
-        <p className="text-muted mb-0">{message}</p>
+    <div className={ui.loadingContainer}>
+      <div className={ui.loadingContent}>
+        <div className={`${ui.spinner} ${ui.textCenter}`} role="status" aria-hidden="true"></div>
+        <p className={ui.textMuted}>{message}</p>
       </div>
     </div>
   );
@@ -159,36 +161,44 @@ function Layout() {
   }
 
   return (
-    <div className="dashboard-app-container">
-      <div className="header-container">
-        <header className="header-wrapper">
-          <h1 className="title mb-0">
-            <Link to="/" className="app-brand-link">
+    <div className={layoutStyles.dashboardAppContainer}>
+      <div className={layoutStyles.headerContainer}>
+        <header className={layoutStyles.headerWrapper}>
+          <h1 className={layoutStyles.headerTitle}>
+            <Link to="/" className={layoutStyles.brandLink}>
               Nodervisor
             </Link>
           </h1>
           <nav aria-label="Primary navigation">
-            <ul className="nav-list">
+            <ul className={layoutStyles.navList}>
               <li>
-                <Link to="/dashboard">Dashboard</Link>
+                <Link to="/dashboard" className={layoutStyles.navLink}>
+                  Dashboard
+                </Link>
               </li>
               {isAdmin && (
                 <>
                   <li>
-                    <Link to="/hosts">Hosts</Link>
+                    <Link to="/hosts" className={layoutStyles.navLink}>
+                      Hosts
+                    </Link>
                   </li>
                   <li>
-                    <Link to="/groups">Groups</Link>
+                    <Link to="/groups" className={layoutStyles.navLink}>
+                      Groups
+                    </Link>
                   </li>
                   <li>
-                    <Link to="/users">Users</Link>
+                    <Link to="/users" className={layoutStyles.navLink}>
+                      Users
+                    </Link>
                   </li>
                 </>
               )}
               <li>
                 <button
                   type="button"
-                  className="btn btn-link nav-link"
+                  className={layoutStyles.navButton}
                   onClick={handleLogout}
                   disabled={loggingOut}
                 >
@@ -199,13 +209,15 @@ function Layout() {
           </nav>
         </header>
       </div>
-      <main className="app-main container">
-        {logoutError && (
-          <div className="alert alert-danger" role="alert">
-            {logoutError}
-          </div>
-        )}
-        <Outlet />
+      <main className={layoutStyles.appMain}>
+        <div className={layoutStyles.appMainContent}>
+          {logoutError && (
+            <div className={`${ui.alert} ${ui.alertError} ${layoutStyles.alertSpacing}`} role="alert">
+              {logoutError}
+            </div>
+          )}
+          <Outlet />
+        </div>
       </main>
     </div>
   );

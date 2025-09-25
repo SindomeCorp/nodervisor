@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { requestJson } from '../apiClient.js';
+import ui from '../styles/ui.module.css';
 
 export default function HostFormPage({ mode }) {
   const isEdit = mode === 'edit';
@@ -96,54 +97,56 @@ export default function HostFormPage({ mode }) {
 
   return (
     <section aria-labelledby="host-form-heading">
-      <header className="mb-3">
-        <h2 id="host-form-heading">{isEdit ? 'Edit host' : 'Add host'}</h2>
+      <header className={ui.sectionHeader}>
+        <h2 id="host-form-heading" className={ui.pageTitle}>
+          {isEdit ? 'Edit host' : 'Add host'}
+        </h2>
       </header>
       {loading ? (
         <p>Loading…</p>
       ) : (
         <form onSubmit={handleSubmit} noValidate>
           {error && (
-            <div className="alert alert-danger" role="alert">
+            <div className={`${ui.alert} ${ui.alertError}`} role="alert">
               {error}
             </div>
           )}
-          <div className="mb-3">
-            <label className="form-label" htmlFor="name">
+          <div className={ui.formField}>
+            <label className={ui.formLabel} htmlFor="name">
               Name
             </label>
             <input
               id="name"
               name="name"
               type="text"
-              className="form-control"
+              className={ui.formControl}
               value={form.name}
               onChange={handleChange}
               required
             />
           </div>
-          <div className="mb-3">
-            <label className="form-label" htmlFor="url">
+          <div className={ui.formField}>
+            <label className={ui.formLabel} htmlFor="url">
               URL
             </label>
             <input
               id="url"
               name="url"
               type="url"
-              className="form-control"
+              className={ui.formControl}
               value={form.url}
               onChange={handleChange}
               required
             />
           </div>
-          <div className="mb-3">
-            <label className="form-label" htmlFor="groupId">
+          <div className={ui.formField}>
+            <label className={ui.formLabel} htmlFor="groupId">
               Group
             </label>
             <select
               id="groupId"
               name="groupId"
-              className="form-select"
+              className={ui.formControl}
               value={form.groupId}
               onChange={handleChange}
             >
@@ -155,11 +158,15 @@ export default function HostFormPage({ mode }) {
               ))}
             </select>
           </div>
-          <div className="d-flex gap-2">
-            <button type="submit" className="btn btn-primary" disabled={saving}>
+          <div className={ui.formActions}>
+            <button type="submit" className={`${ui.button} ${ui.buttonPrimary}`} disabled={saving}>
               {saving ? 'Saving…' : 'Save'}
             </button>
-            <button type="button" className="btn btn-secondary" onClick={() => navigate('/hosts')}>
+            <button
+              type="button"
+              className={`${ui.button} ${ui.buttonSecondary}`}
+              onClick={() => navigate('/hosts')}
+            >
               Cancel
             </button>
           </div>
