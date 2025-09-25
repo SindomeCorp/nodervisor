@@ -1,4 +1,5 @@
 import express from 'express';
+import fs from 'fs';
 import path from 'path';
 import favicon from 'serve-favicon';
 import morgan from 'morgan';
@@ -42,6 +43,8 @@ export function createApp({ config, db, supervisordapi, sessionStore }) {
   app.use(stylus.middleware(path.join(projectRoot, 'public')));
   app.use(express.static(path.join(projectRoot, 'public')));
 
+  app.locals.dashboardAssets = loadDashboardAssets();
+
   if (app.get('env') === 'development') {
     app.use(errorhandler());
   }
@@ -50,4 +53,41 @@ export function createApp({ config, db, supervisordapi, sessionStore }) {
   app.use(router);
 
   return app;
+}
+
+function loadDashboardAssets() {
+  const dashboardDir = path.join(projectRoot, 'public', 'dashboard');
+  const manifestCandidates = [
+    path.join(dashboardDir, 'manifest.json'),
+    path.join(dashboardDir, '.vite', 'manifest.json')
+  ];
+
+  for (const manifestPath of manifestCandidates) {
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      const entry = manifest['src/main.jsx'] ?? manifest['main.jsx'];
+
+      if (!entry) {
+        return null;
+      }
+
+      const css = Array.isArray(entry.css)
+        ? entry.css.map((href) => `/dashboard/${href}`)
+        : [];
+
+      return {
+        js: `/dashboard/${entry.file}`,
+        css
+      };
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('Unable to load dashboard assets manifest:', err.message);
+        }
+        return null;
+      }
+    }
+  }
+
+  return null;
 }

@@ -10,7 +10,8 @@ export function dashboard() {
 
     return res.render('dashboard', {
       title: 'Nodervisor - Dashboard',
-      session: req.session
+      session: req.session,
+      includeDashboardApp: true
     });
   };
 }
