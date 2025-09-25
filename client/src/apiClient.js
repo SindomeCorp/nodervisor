@@ -31,3 +31,35 @@ export async function requestJson(url, options = {}) {
 
   return payload?.data ?? payload;
 }
+
+export function createAuthClient(endpoints = {}) {
+  const {
+    session = '/api/auth/session',
+    login = '/api/auth/login',
+    logout = '/api/auth/logout',
+    register = '/api/auth/register'
+  } = endpoints ?? {};
+
+  return {
+    getSession() {
+      return requestJson(session);
+    },
+    login(credentials) {
+      return requestJson(login, {
+        method: 'POST',
+        body: JSON.stringify(credentials)
+      });
+    },
+    logout() {
+      return requestJson(logout, {
+        method: 'POST'
+      });
+    },
+    register(payload) {
+      return requestJson(register, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    }
+  };
+}

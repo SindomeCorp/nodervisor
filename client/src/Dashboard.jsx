@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 const STATUS_ORDER = ['CONERR', 'FATAL', 'EXITED', 'STARTING', 'RUNNING', 'STOPPED', 'BACKOFF'];
 const STATUS_META = {
-  CONERR: { className: 'redIcons', icon: 'fa fa-bolt' },
-  FATAL: { className: 'redIcons', icon: 'fa fa-exclamation-circle' },
-  EXITED: { className: 'redIcons', icon: 'fa fa-exclamation-circle' },
-  STARTING: { className: 'goldIcons', icon: 'fa fa-refresh' },
-  RUNNING: { className: 'greenIcons', icon: 'fa fa-check-circle' },
-  STOPPED: { className: 'blueIcons', icon: 'fa fa-minus-circle' },
-  BACKOFF: { className: 'blueIcons', icon: 'fa fa-minus-circle' }
+  CONERR: { className: 'redIcons', icon: 'fa-solid fa-bolt' },
+  FATAL: { className: 'redIcons', icon: 'fa-solid fa-circle-exclamation' },
+  EXITED: { className: 'redIcons', icon: 'fa-solid fa-circle-exclamation' },
+  STARTING: { className: 'goldIcons', icon: 'fa-solid fa-rotate' },
+  RUNNING: { className: 'greenIcons', icon: 'fa-solid fa-circle-check' },
+  STOPPED: { className: 'blueIcons', icon: 'fa-solid fa-circle-minus' },
+  BACKOFF: { className: 'blueIcons', icon: 'fa-solid fa-circle-minus' }
 };
 
 function transformHosts(rawHosts) {
@@ -73,14 +73,6 @@ function summarizeProcesses(processes) {
   )[0];
 
   return { status, count };
-}
-
-function chunkHosts(hosts, size) {
-  const rows = [];
-  for (let i = 0; i < hosts.length; i += size) {
-    rows.push(hosts.slice(i, i + size));
-  }
-  return rows;
 }
 
 function useDashboardData(pollInterval) {
@@ -157,12 +149,13 @@ function HostCard({ host, processes }) {
   const label = summary.count;
 
   return (
-    <div className="span2 well well-small dashboard-card">
-      <h2 style={{ marginTop: 0 }}>{host?.Name ?? 'Unknown Host'}</h2>
-      <div>
-        <span className={`${meta.className} largeIcon`}>
-          <i className={meta.icon}></i> {label}
-        </span>
+    <div className="card dashboard-card">
+      <div className="card-body">
+        <h3 className="h5 mb-4">{host?.Name ?? 'Unknown Host'}</h3>
+        <div className={`dashboard-status-label ${meta.className}`}>
+          <i className={`${meta.icon}`} aria-hidden="true"></i>
+          <span>{label}</span>
+        </div>
       </div>
     </div>
   );
@@ -170,38 +163,33 @@ function HostCard({ host, processes }) {
 
 export default function Dashboard() {
   const { hosts, error, loading } = useDashboardData(10000);
-  const rows = useMemo(() => chunkHosts(hosts, 6), [hosts]);
+  const hasHosts = hosts.length > 0;
 
   return (
-    <div className="container dashboard-app-container">
-      <div className="main-container dashboard-main-container">
-        <div className="main clearfix dashboard-main">
-          <article>
-          {loading && hosts.length === 0 && (
-            <p>Loading the latest supervisor information…</p>
-          )}
-          {error && (
-            <div className="alert alert-danger dashboard-error" role="alert">
-              {error}
-            </div>
-          )}
-          {rows.length === 0 && !loading && !error && (
-            <p>No hosts available.</p>
-          )}
-          {rows.map((row, rowIndex) => (
-            <div className="row-fluid" key={`row-${rowIndex}`}>
-              {row.map((entry, index) => (
-                <HostCard
-                  key={entry.host?.idHost ?? `${entry.host?.Name ?? 'host'}-${index}`}
-                  host={entry.host}
-                  processes={entry.data}
-                />
-              ))}
-            </div>
-          ))}
-          </article>
+    <section className="dashboard-section" aria-labelledby="dashboard-heading">
+      <header className="mb-4">
+        <h2 id="dashboard-heading" className="h4">
+          Supervisor overview
+        </h2>
+      </header>
+      {loading && hosts.length === 0 && <p>Loading the latest supervisor information…</p>}
+      {error && (
+        <div className="alert alert-danger dashboard-error" role="alert">
+          {error}
         </div>
-      </div>
-    </div>
+      )}
+      {!hasHosts && !loading && !error && <p>No hosts available.</p>}
+      {hasHosts && (
+        <div className="dashboard-grid">
+          {hosts.map((entry, index) => (
+            <HostCard
+              key={entry.host?.idHost ?? `${entry.host?.Name ?? 'host'}-${index}`}
+              host={entry.host}
+              processes={entry.data}
+            />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
