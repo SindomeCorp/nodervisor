@@ -59,11 +59,11 @@ export class SupervisordService {
   }
 
   async fetchAllProcessInfo() {
-    const hosts = Object.values(this.config.hosts ?? {});
+    const hosts = this.config.hostCache?.getAll?.() ?? Object.values(this.config.hosts ?? {});
     const results = await Promise.all(
       hosts.map(async (host) => {
         try {
-          const client = this.supervisordapi.connect(host.Url);
+          const client = this.#createClient(host);
           const data = await this.#callClient(client, 'getAllProcessInfo');
           return [host.idHost, { host, data }];
         } catch (err) {
@@ -125,9 +125,17 @@ export class SupervisordService {
   }
 
   #getClient(hostId) {
-    const host = this.config.hosts?.[hostId];
+    const host = this.config.hostCache?.get?.(hostId) ?? this.config.hosts?.[hostId];
     if (!host) {
       throw new ServiceError(`Host not found: ${hostId}`, 404);
+    }
+
+    return this.#createClient(host);
+  }
+
+  #createClient(host) {
+    if (this.config.supervisord?.createClient) {
+      return this.config.supervisord.createClient(this.supervisordapi, host);
     }
 
     return this.supervisordapi.connect(host.Url);

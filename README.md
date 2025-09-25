@@ -15,7 +15,14 @@ A Supervisord manager in node.js. Nodervisor provides a real-time web dashboard 
 
         npm install
 
-  2. Update the config.js file with your database connection details.
+  2. Copy `.env-example` to `.env` (or set equivalent environment variables) and update the values for your database, session, and server configuration. For example:
+
+        cp .env-example .env
+        PORT=3000
+        HOST=127.0.0.1
+        DB_CLIENT=sqlite3
+        DB_FILENAME=./nodervisor.sqlite
+        SESSION_SECRET=use-a-long-random-string
 
 ### How to use it
 

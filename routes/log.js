@@ -19,8 +19,9 @@ export function log(context) {
 
     if (req.params.host && req.params.process) {
       const data = {};
-      if (config.hosts[req.params.host] !== undefined) {
-        data.host = config.hosts[req.params.host];
+      const host = config.hostCache?.get?.(req.params.host) ?? config.hosts?.[req.params.host];
+      if (host) {
+        data.host = host;
       } else {
         data.error = 'Host not found';
       }
