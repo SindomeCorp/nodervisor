@@ -6,6 +6,12 @@ export async function requestJson(url, options = {}) {
   if (!headers.has('Accept')) {
     headers.set('Accept', 'application/json');
   }
+  if (!headers.has('X-CSRF-Token')) {
+    const csrfToken = getCookieValue('XSRF-TOKEN');
+    if (csrfToken) {
+      headers.set('X-CSRF-Token', csrfToken);
+    }
+  }
 
   const response = await fetch(url, {
     credentials: 'same-origin',
@@ -30,6 +36,22 @@ export async function requestJson(url, options = {}) {
   }
 
   return payload?.data ?? payload;
+}
+
+function getCookieValue(name) {
+  if (typeof document === 'undefined' || typeof document.cookie !== 'string') {
+    return null;
+  }
+
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [cookieName, ...rest] = cookie.trim().split('=');
+    if (cookieName === name) {
+      return decodeURIComponent(rest.join('='));
+    }
+  }
+
+  return null;
 }
 
 export function createAuthClient(endpoints = {}) {
