@@ -11,36 +11,38 @@ import { ensureAdminRequest } from '../server/session.js';
  * @returns {import('../server/types.js').RequestHandler}
  */
 export function groups(context) {
-  const { db, config } = context;
+  const { config, data } = context;
+  const groupRepository = data.groups;
   return async function (req, res, next) {
     if (!ensureAdminRequest(req, res)) {
       return;
     }
 
     try {
-      if (req.body.delete !== undefined && req.params.idGroup) {
-        await db('groups').where('idGroup', req.params.idGroup).del();
-        await config.readHosts(db);
-        return res.redirect('/groups');
-      }
-      if (req.body.submit !== undefined && req.params.idGroup) {
-        if (req.params.idGroup === 'new') {
-          await db('groups').insert({
-            Name: req.body.name
-          });
-        } else {
-          await db('groups')
-            .where('idGroup', req.params.idGroup)
-            .update({
-              Name: req.body.name
-            });
-        }
-        await config.readHosts(db);
+      const { idGroup } = req.params;
+      const isNewRecord = idGroup === 'new';
+      const parsedGroupId = Number(idGroup);
+      const groupId = !idGroup || isNewRecord || Number.isNaN(parsedGroupId) ? null : parsedGroupId;
+
+      if (req.body.delete !== undefined && groupId !== null) {
+        await groupRepository.deleteGroup(groupId);
+        await config.refreshHosts(context.db);
         return res.redirect('/groups');
       }
 
-      if (req.params.idGroup) {
-        if (req.params.idGroup === 'new') {
+      if (req.body.submit !== undefined && idGroup) {
+        if (isNewRecord) {
+          await groupRepository.createGroup({ name: req.body.name });
+        } else if (groupId !== null) {
+          await groupRepository.updateGroup(groupId, { name: req.body.name });
+        }
+
+        await config.refreshHosts(context.db);
+        return res.redirect('/groups');
+      }
+
+      if (idGroup) {
+        if (isNewRecord) {
           return res.render('edit_group', {
             title: 'Nodervisor - Edit Group',
             group: null,
@@ -48,9 +50,11 @@ export function groups(context) {
           });
         }
 
-        const group = await db('groups')
-          .where('idGroup', req.params.idGroup)
-          .first();
+        if (groupId === null) {
+          return res.redirect('/groups');
+        }
+
+        const group = await groupRepository.getGroupById(groupId);
 
         if (!group) {
           return res.redirect('/groups');
@@ -63,7 +67,7 @@ export function groups(context) {
         });
       }
 
-      const groups = await db('groups');
+      const groups = await groupRepository.listGroups();
       return res.render('groups', {
         title: 'Nodervisor - Groups',
         groups,

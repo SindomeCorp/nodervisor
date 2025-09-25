@@ -19,10 +19,10 @@
                             </tr>
                             <% for (host in hosts) { %>
                                 <tr>
-                                    <td><%= hosts[host].Name %></td>
-                                    <td><%= hosts[host].Url %></td>
-                                    <td><%= hosts[host].GroupName != null ? hosts[host].GroupName : '' %></td>
-                                    <td><a href="/host/<%= hosts[host].idHost %>" class="btn btn-default"><i class="glyphicon glyphicon-edit"></i></a></td>
+                                    <td><%= hosts[host].name %></td>
+                                    <td><%= hosts[host].url %></td>
+                                    <td><%= hosts[host].groupName != null ? hosts[host].groupName : '' %></td>
+                                    <td><a href="/host/<%= hosts[host].id %>" class="btn btn-default"><i class="glyphicon glyphicon-edit"></i></a></td>
                                 </tr>
                             <% } %>
                         </table>

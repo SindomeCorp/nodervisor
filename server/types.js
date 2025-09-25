@@ -38,12 +38,74 @@ export let HostRow;
 export let UserRow;
 
 /**
+ * @typedef {Object} Group
+ * @property {number} id
+ * @property {string} name
+ */
+export let Group;
+
+/**
+ * @typedef {Object} Host
+ * @property {number} id
+ * @property {string} name
+ * @property {string} url
+ * @property {number|null} [groupId]
+ * @property {string|null} [groupName]
+ */
+export let Host;
+
+/**
+ * @typedef {Object} User
+ * @property {number} id
+ * @property {string} name
+ * @property {string} email
+ * @property {string} role
+ */
+export let User;
+
+/**
+ * @typedef {User & { passwordHash: string }} UserWithPassword
+ */
+export let UserWithPassword;
+
+/**
  * @typedef {import('express-session').Session & import('express-session').SessionData & {
  *   loggedIn?: boolean;
- *   user?: UserRow | null;
+ *   user?: User | null;
  * }} RequestSession
  */
 export let RequestSession;
+
+/**
+ * @typedef {Object} HostRepository
+ * @property {() => Promise<Host[]>} listHosts
+ * @property {(id: number) => Promise<Host | null>} getHostById
+ * @property {(input: { name: string; url: string; groupId?: number | null }) => Promise<Host | null>} createHost
+ * @property {(id: number, input: { name: string; url: string; groupId?: number | null }) => Promise<Host | null>} updateHost
+ * @property {(id: number) => Promise<number>} deleteHost
+ */
+export let HostRepository;
+
+/**
+ * @typedef {Object} GroupRepository
+ * @property {() => Promise<Group[]>} listGroups
+ * @property {(id: number) => Promise<Group | null>} getGroupById
+ * @property {(input: { name: string }) => Promise<Group | null>} createGroup
+ * @property {(id: number, input: { name: string }) => Promise<Group | null>} updateGroup
+ * @property {(id: number) => Promise<number>} deleteGroup
+ */
+export let GroupRepository;
+
+/**
+ * @typedef {Object} UserRepository
+ * @property {() => Promise<User[]>} listUsers
+ * @property {(id: number) => Promise<User | null>} getUserById
+ * @property {(email: string) => Promise<UserWithPassword | null>} findByEmail
+ * @property {(input: { name: string; email: string; passwordHash: string; role: string }) => Promise<User | null>} createUser
+ * @property {(id: number, input: { name: string; email: string; role: string; passwordHash?: string | null }) => Promise<User | null>} updateUser
+ * @property {(id: number) => Promise<number>} deleteUser
+ */
+export let UserRepository;
 
 /**
  * @typedef {Object} HostOverrideConnection
@@ -150,6 +212,11 @@ export let ServerConfig;
  * @typedef {Object} ServerContext
  * @property {ServerConfig} config
  * @property {Knex} db
+ * @property {{
+ *   hosts: HostRepository;
+ *   groups: GroupRepository;
+ *   users: UserRepository;
+ * }} data
  * @property {SessionStore} sessionStore
  * @property {typeof import('supervisord')} supervisordapi
  * @property {string} [version]

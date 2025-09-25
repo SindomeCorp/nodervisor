@@ -1,7 +1,7 @@
 import { ServiceError } from '../services/supervisordService.js';
 
 /** @typedef {import('./types.js').RequestSession} RequestSession */
-/** @typedef {import('./types.js').UserRow} UserRow */
+/** @typedef {import('./types.js').User} User */
 /** @typedef {import('express').Request} Request */
 /** @typedef {import('express').Response} Response */
 
@@ -9,7 +9,7 @@ import { ServiceError } from '../services/supervisordService.js';
  * Returns the authenticated user attached to the session.
  *
  * @param {RequestSession | undefined | null} session
- * @returns {UserRow | null}
+ * @returns {User | null}
  */
 export function getSessionUser(session) {
   return session?.user ?? null;
@@ -19,7 +19,7 @@ export function getSessionUser(session) {
  * Determines whether the provided session represents an authenticated user.
  *
  * @param {RequestSession | undefined | null} session
- * @returns {session is RequestSession & { loggedIn: true; user: UserRow }}
+ * @returns {session is RequestSession & { loggedIn: true; user: User }}
  */
 export function isSessionAuthenticated(session) {
   return Boolean(session?.loggedIn && session?.user);
@@ -32,7 +32,7 @@ export function isSessionAuthenticated(session) {
  * @returns {boolean}
  */
 export function isSessionAdmin(session) {
-  return isSessionAuthenticated(session) && getSessionUser(session)?.Role === 'Admin';
+  return isSessionAuthenticated(session) && getSessionUser(session)?.role === 'Admin';
 }
 
 /**
@@ -81,7 +81,7 @@ export function ensureAdminRequest(req, res, redirectTo = '/dashboard') {
  * redirects are undesirable.
  *
  * @param {RequestSession | undefined | null} session
- * @returns {RequestSession & { loggedIn: true; user: UserRow }}
+ * @returns {RequestSession & { loggedIn: true; user: User }}
  * @throws {ServiceError}
  */
 export function assertSessionAuthenticated(session) {
@@ -97,7 +97,7 @@ export function assertSessionAuthenticated(session) {
  * {@link ServiceError} when the requirement is not satisfied.
  *
  * @param {RequestSession | undefined | null} session
- * @returns {RequestSession & { loggedIn: true; user: UserRow }}
+ * @returns {RequestSession & { loggedIn: true; user: User }}
  * @throws {ServiceError}
  */
 export function assertSessionAdmin(session) {

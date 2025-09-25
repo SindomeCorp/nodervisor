@@ -17,8 +17,8 @@
                             </tr>
                             <% for (group in groups) { %>
                                 <tr>
-                                    <td><%= groups[group].Name %></td>
-                                    <td><a href="/group/<%= groups[group].idGroup %>" class="btn btn-default"><i class="glyphicon glyphicon-edit"></i></a></td>
+                                    <td><%= groups[group].name %></td>
+                                    <td><a href="/group/<%= groups[group].id %>" class="btn btn-default"><i class="glyphicon glyphicon-edit"></i></a></td>
                                 </tr>
                             <% } %>
                         </table>

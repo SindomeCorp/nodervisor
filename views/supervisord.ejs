@@ -31,7 +31,7 @@
         <%
             var sessRole = '';
             if (typeof session.user != 'undefined'){
-                sessRole = session.user.Role;
+                sessRole = session.user.role;
             }
         %>
         var uiRole = '<%= sessRole %>';

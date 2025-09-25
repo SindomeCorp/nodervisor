@@ -13,48 +13,53 @@ import { ensureAdminRequest } from '../server/session.js';
  * @returns {import('../server/types.js').RequestHandler}
  */
 export function users(context) {
-  const { db } = context;
+  const {
+    data: { users: userRepository }
+  } = context;
   return async function (req, res, next) {
     if (!ensureAdminRequest(req, res)) {
       return;
     }
 
     try {
-      if (req.body.delete !== undefined && req.params.idUser) {
-        await db('users').where('id', req.params.idUser).del();
+      const { idUser } = req.params;
+      const isNewRecord = idUser === 'new';
+      const parsedUserId = Number(idUser);
+      const userId = !idUser || isNewRecord || Number.isNaN(parsedUserId) ? null : parsedUserId;
+
+      if (req.body.delete !== undefined && userId !== null) {
+        await userRepository.deleteUser(userId);
         return res.redirect('/users');
       }
 
-      if (req.body.submit !== undefined && req.params.idUser) {
-        if (req.params.idUser === 'new') {
+      if (req.body.submit !== undefined && idUser) {
+        if (isNewRecord) {
           const hashedPassword = await bcrypt.hash(req.body.password, 10);
-          await db('users').insert({
-            Name: req.body.name,
-            Email: req.body.email,
-            Password: hashedPassword,
-            Role: req.body.role
+          await userRepository.createUser({
+            name: req.body.name,
+            email: req.body.email,
+            passwordHash: hashedPassword,
+            role: req.body.role
           });
-        } else {
-          const info = {
-            Name: req.body.name,
-            Email: req.body.email,
-            Role: req.body.role
+        } else if (userId !== null) {
+          const updatePayload = {
+            name: req.body.name,
+            email: req.body.email,
+            role: req.body.role
           };
 
           if (req.body.password !== '') {
-            info.Password = await bcrypt.hash(req.body.password, 10);
+            updatePayload.passwordHash = await bcrypt.hash(req.body.password, 10);
           }
 
-          await db('users')
-            .where('id', req.params.idUser)
-            .update(info);
+          await userRepository.updateUser(userId, updatePayload);
         }
 
         return res.redirect('/users');
       }
 
-      if (req.params.idUser) {
-        if (req.params.idUser === 'new') {
+      if (idUser) {
+        if (isNewRecord) {
           return res.render('edit_user', {
             title: 'Nodervisor - Edit User',
             user: null,
@@ -62,9 +67,11 @@ export function users(context) {
           });
         }
 
-        const user = await db('users')
-          .where('id', req.params.idUser)
-          .first();
+        if (userId === null) {
+          return res.redirect('/users');
+        }
+
+        const user = await userRepository.getUserById(userId);
 
         if (!user) {
           return res.redirect('/users');
@@ -77,7 +84,7 @@ export function users(context) {
         });
       }
 
-      const users = await db('users');
+      const users = await userRepository.listUsers();
 
       return res.render('users', {
         title: 'Nodervisor - Users',

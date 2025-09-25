@@ -19,9 +19,9 @@
                             </tr>
                             <% for (user in users) { %>
                                 <tr>
-                                    <td><%= users[user].Name %></td>
-                                    <td><%= users[user].Email %></td>
-                                    <td><%= users[user].Role %></td>
+                                    <td><%= users[user].name %></td>
+                                    <td><%= users[user].email %></td>
+                                    <td><%= users[user].role %></td>
                                     <td><a href="/user/<%= users[user].id %>" class="btn btn-default"><i class="glyphicon glyphicon-edit"></i></a></td>
                                 </tr>
                             <% } %>

@@ -1,4 +1,7 @@
 import { createRequire } from 'module';
+import { createGroupsRepository } from '../data/groups.js';
+import { createHostsRepository } from '../data/hosts.js';
+import { createUsersRepository } from '../data/users.js';
 
 /** @typedef {import('./types.js').ServerContext} ServerContext */
 /** @typedef {import('./types.js').ServerConfig} ServerConfig */
@@ -23,9 +26,16 @@ export function createServerContext({ config, db, sessionStore, supervisordapi }
     throw new Error('Invalid server context configuration');
   }
 
+  const data = Object.freeze({
+    hosts: createHostsRepository(db),
+    groups: createGroupsRepository(db),
+    users: createUsersRepository(db)
+  });
+
   return Object.freeze({
     config,
     db,
+    data,
     sessionStore,
     supervisordapi,
     version: packageJson.version
