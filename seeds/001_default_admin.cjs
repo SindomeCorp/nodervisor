@@ -8,7 +8,7 @@ exports.seed = async function seed(knex) {
     await knex('users').insert({
       Name: 'Admin',
       Email: 'admin@nodervisor',
-      Password: '$2a$10$OI5bfzPATM2358vQlDYKweliWYI2FyJwqsDJUMXuqaSzM.7vNa3xu',
+      Password: '$2b$10$JE/okr6K8iN2P3oQg0YLaOZ0pkKf.ZtVIaNHv7bsXw3oPmRF8eXAG',
       Role: 'Admin'
     });
   }
