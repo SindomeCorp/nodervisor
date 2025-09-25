@@ -7,19 +7,27 @@ import escapeHtml from 'escape-html';
  *   title?: string;
  *   dashboardAssets?: { js?: string | null; css?: string[] } | null;
  *   session?: import('./types.js').RequestSession | null | undefined;
+ *   authConfig?: import('./types.js').AuthConfig | null | undefined;
  * }} options
  */
-export function renderAppPage({ title = 'Nodervisor', dashboardAssets = null, session = null } = {}) {
+export function renderAppPage({
+  title = 'Nodervisor',
+  dashboardAssets = null,
+  session = null,
+  authConfig = null
+} = {}) {
   const cssAssets = [...(dashboardAssets?.css ?? [])];
 
   const scriptAssets = dashboardAssets?.js ? [dashboardAssets.js] : [];
+  const allowSelfRegistration = authConfig?.allowSelfRegistration ?? true;
   const serializedState = serializeState({
     user: session?.user ?? null,
     auth: {
       session: '/api/auth/session',
       login: '/api/auth/login',
       logout: '/api/auth/logout',
-      register: '/api/auth/register'
+      register: allowSelfRegistration ? '/api/auth/register' : null,
+      allowSelfRegistration
     }
   });
 

@@ -87,6 +87,7 @@ const envSchema = z
     SESSION_COOKIE_SECURE: booleanLike,
     SESSION_COOKIE_HTTP_ONLY: booleanLike,
     SESSION_COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).optional(),
+    AUTH_ALLOW_SELF_REGISTRATION: booleanLike,
     SUPERVISORD_PROTOCOL: z.enum(['http', 'https']).optional(),
     SUPERVISORD_HOST: z.string().optional(),
     SUPERVISORD_PORT: integerLike(),
@@ -117,6 +118,7 @@ const sessionCookiePath = parsedEnv.SESSION_COOKIE_PATH ?? '/';
 const sessionCookieMaxAge = parsedEnv.SESSION_COOKIE_MAX_AGE ?? 7 * 24 * 60 * 60 * 1000;
 const sessionCookieDomain = parsedEnv.SESSION_COOKIE_DOMAIN;
 const sessionCookieName = parsedEnv.SESSION_COOKIE_NAME ?? 'nv.sid';
+const allowSelfRegistration = parsedEnv.AUTH_ALLOW_SELF_REGISTRATION ?? true;
 
 const defaultDbFilename = path.join(projectRoot, 'nodervisor.sqlite');
 const dbClient = parsedEnv.DB_CLIENT ?? 'sqlite3';
@@ -300,6 +302,9 @@ const config = {
     })
   },
   sessionSecret,
+  auth: {
+    allowSelfRegistration
+  },
   supervisord,
   dashboard: dashboardConfig,
   hostCache,

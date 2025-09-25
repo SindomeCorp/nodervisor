@@ -62,7 +62,7 @@ export function createAuthClient(endpoints = {}) {
     register = '/api/auth/register'
   } = endpoints ?? {};
 
-  return {
+  const client = {
     getSession() {
       return requestJson(session);
     },
@@ -76,12 +76,16 @@ export function createAuthClient(endpoints = {}) {
       return requestJson(logout, {
         method: 'POST'
       });
-    },
-    register(payload) {
-      return requestJson(register, {
+    }
+  };
+
+  if (register) {
+    client.register = (payload) =>
+      requestJson(register, {
         method: 'POST',
         body: JSON.stringify(payload)
       });
-    }
-  };
+  }
+
+  return client;
 }

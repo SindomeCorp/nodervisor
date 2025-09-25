@@ -15,6 +15,7 @@ export function createAuthApi(context) {
   } = context;
   const sessionCookieName = config?.session?.name ?? 'connect.sid';
   const sessionCookieConfig = config?.session?.cookie;
+  const allowSelfRegistration = config?.auth?.allowSelfRegistration ?? true;
 
   const loginLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -36,7 +37,10 @@ export function createAuthApi(context) {
       status: 'success',
       data: {
         user: req.session?.user ?? null,
-        csrfToken
+        csrfToken,
+        auth: {
+          allowSelfRegistration
+        }
       }
     });
   });
@@ -96,6 +100,14 @@ export function createAuthApi(context) {
   });
 
   router.post('/register', async (req, res) => {
+    if (!allowSelfRegistration) {
+      res.status(403).json({
+        status: 'error',
+        error: { message: 'Self-registration is disabled.' }
+      });
+      return;
+    }
+
     try {
       const { name, email, password } = req.body ?? {};
       if (!name || !email || !password) {

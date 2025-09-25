@@ -33,6 +33,7 @@ import ui from './styles/ui.module.css';
 export const SessionContext = createContext({
   user: null,
   status: 'loading',
+  allowSelfRegistration: true,
   login: async () => {},
   logout: async () => {},
   register: async () => {},
@@ -45,6 +46,11 @@ export function useSession() {
 
 function SessionProvider({ initialState, children }) {
   const authClient = useMemo(() => createAuthClient(initialState?.auth), [initialState]);
+  const initialAllowSelfRegistration =
+    typeof initialState?.auth?.allowSelfRegistration === 'boolean'
+      ? initialState.auth.allowSelfRegistration
+      : Boolean(initialState?.auth?.register);
+  const [allowSelfRegistration, setAllowSelfRegistration] = useState(initialAllowSelfRegistration);
   const [user, setUser] = useState(initialState?.user ?? null);
   const [status, setStatus] = useState(initialState?.user ? 'authenticated' : 'loading');
   const initialFetchCompleted = useRef(Boolean(initialState?.user));
@@ -54,6 +60,10 @@ function SessionProvider({ initialState, children }) {
     try {
       const data = await authClient.getSession();
       const sessionUser = data?.user ?? null;
+      const allowRegistration = data?.auth?.allowSelfRegistration;
+      setAllowSelfRegistration((prev) =>
+        typeof allowRegistration === 'boolean' ? allowRegistration : prev
+      );
       setUser(sessionUser);
       setStatus(sessionUser ? 'authenticated' : 'unauthenticated');
       return sessionUser;
@@ -94,6 +104,10 @@ function SessionProvider({ initialState, children }) {
 
   const register = useCallback(
     async ({ name, email, password }) => {
+      if (!allowSelfRegistration || typeof authClient.register !== 'function') {
+        throw new Error('Self-registration is disabled.');
+      }
+
       setStatus('loading');
       try {
         const result = await authClient.register({ name, email, password });
@@ -107,7 +121,7 @@ function SessionProvider({ initialState, children }) {
         throw err;
       }
     },
-    [authClient]
+    [allowSelfRegistration, authClient]
   );
 
   const logout = useCallback(async () => {
@@ -123,8 +137,8 @@ function SessionProvider({ initialState, children }) {
   }, [authClient, user]);
 
   const value = useMemo(
-    () => ({ user, status, login, logout, register, refreshSession }),
-    [user, status, login, logout, register, refreshSession]
+    () => ({ user, status, allowSelfRegistration, login, logout, register, refreshSession }),
+    [user, status, allowSelfRegistration, login, logout, register, refreshSession]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
@@ -263,111 +277,123 @@ function RequireGuest({ children }) {
   return children;
 }
 
+function AppRoutes() {
+  const { allowSelfRegistration } = useSession();
+
+  return (
+    <Routes>
+      <Route element={<RequireAuth />}>
+        <Route element={<Layout />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route
+            path="hosts"
+            element={
+              <RequireAdmin>
+                <HostsListPage />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="hosts/new"
+            element={
+              <RequireAdmin>
+                <HostFormPage mode="create" />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="hosts/:hostId"
+            element={
+              <RequireAdmin>
+                <HostFormPage mode="edit" />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="groups"
+            element={
+              <RequireAdmin>
+                <GroupsListPage />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="groups/new"
+            element={
+              <RequireAdmin>
+                <GroupFormPage mode="create" />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="groups/:groupId"
+            element={
+              <RequireAdmin>
+                <GroupFormPage mode="edit" />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="users"
+            element={
+              <RequireAdmin>
+                <UsersListPage />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="users/new"
+            element={
+              <RequireAdmin>
+                <UserFormPage mode="create" />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="users/:userId"
+            element={
+              <RequireAdmin>
+                <UserFormPage mode="edit" />
+              </RequireAdmin>
+            }
+          />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Route>
+      </Route>
+      <Route path="auth">
+        <Route index element={<Navigate to="login" replace />} />
+        <Route
+          path="login"
+          element={
+            <RequireGuest>
+              <LoginPage />
+            </RequireGuest>
+          }
+        />
+        <Route
+          path="register"
+          element={
+            allowSelfRegistration ? (
+              <RequireGuest>
+                <RegisterPage />
+              </RequireGuest>
+            ) : (
+              <Navigate to="login" replace />
+            )
+          }
+        />
+      </Route>
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  );
+}
+
 export default function App({ initialState }) {
   return (
     <SessionProvider initialState={initialState}>
       <BrowserRouter>
-        <Routes>
-          <Route element={<RequireAuth />}>
-            <Route element={<Layout />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route
-                path="hosts"
-                element={
-                  <RequireAdmin>
-                    <HostsListPage />
-                  </RequireAdmin>
-                }
-              />
-              <Route
-                path="hosts/new"
-                element={
-                  <RequireAdmin>
-                    <HostFormPage mode="create" />
-                  </RequireAdmin>
-                }
-              />
-              <Route
-                path="hosts/:hostId"
-                element={
-                  <RequireAdmin>
-                    <HostFormPage mode="edit" />
-                  </RequireAdmin>
-                }
-              />
-              <Route
-                path="groups"
-                element={
-                  <RequireAdmin>
-                    <GroupsListPage />
-                  </RequireAdmin>
-                }
-              />
-              <Route
-                path="groups/new"
-                element={
-                  <RequireAdmin>
-                    <GroupFormPage mode="create" />
-                  </RequireAdmin>
-                }
-              />
-              <Route
-                path="groups/:groupId"
-                element={
-                  <RequireAdmin>
-                    <GroupFormPage mode="edit" />
-                  </RequireAdmin>
-                }
-              />
-              <Route
-                path="users"
-                element={
-                  <RequireAdmin>
-                    <UsersListPage />
-                  </RequireAdmin>
-                }
-              />
-              <Route
-                path="users/new"
-                element={
-                  <RequireAdmin>
-                    <UserFormPage mode="create" />
-                  </RequireAdmin>
-                }
-              />
-              <Route
-                path="users/:userId"
-                element={
-                  <RequireAdmin>
-                    <UserFormPage mode="edit" />
-                  </RequireAdmin>
-                }
-              />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Route>
-          </Route>
-          <Route path="auth">
-            <Route index element={<Navigate to="login" replace />} />
-            <Route
-              path="login"
-              element={
-                <RequireGuest>
-                  <LoginPage />
-                </RequireGuest>
-              }
-            />
-            <Route
-              path="register"
-              element={
-                <RequireGuest>
-                  <RegisterPage />
-                </RequireGuest>
-              }
-            />
-          </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
+        <AppRoutes />
       </BrowserRouter>
     </SessionProvider>
   );

@@ -64,7 +64,8 @@ export function createRouter(context) {
     const html = renderAppPage({
       title,
       dashboardAssets: req.app.locals.dashboardAssets,
-      session: req.session
+      session: req.session,
+      authConfig: context.config.auth
     });
 
     res.type('html').send(html);

@@ -26,9 +26,13 @@ A Supervisord manager in node.js. Nodervisor provides a real-time web dashboard 
 
      Before seeding the database you must also configure credentials for the bootstrap administrator account. Provide either a plain-text password (it will be hashed during the seed) or a pre-computed bcrypt hash:
 
-        ADMIN_SEED_PASSWORD=change-me-soon
-        # or provide a hash instead of plain text
-        # ADMIN_SEED_PASSWORD_HASH=$2b$12$...
+     ADMIN_SEED_PASSWORD=change-me-soon
+     # or provide a hash instead of plain text
+     # ADMIN_SEED_PASSWORD_HASH=$2b$12$...
+
+     In production environments where you do not want unauthenticated users to create accounts, set
+     `AUTH_ALLOW_SELF_REGISTRATION=false`. Disabling self-registration removes the sign-up form and blocks the
+     `/api/auth/register` endpoint so only administrators can add new users.
 
   3. Run the database migrations and seed data:
 
