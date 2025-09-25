@@ -55,6 +55,58 @@ function integerLike() {
     });
 }
 
+function trustProxyLike() {
+  return z
+    .union([z.boolean(), z.number(), z.string()])
+    .optional()
+    .transform((value, ctx) => {
+      if (value === undefined || value === null || value === '') {
+        return undefined;
+      }
+
+      if (typeof value === 'boolean') {
+        return value;
+      }
+
+      if (typeof value === 'number') {
+        if (!Number.isInteger(value) || value < 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Expected a non-negative integer or boolean value'
+          });
+          return z.NEVER;
+        }
+
+        return value;
+      }
+
+      const normalized = value.toString().trim();
+      if (!normalized) {
+        return undefined;
+      }
+
+      const lower = normalized.toLowerCase();
+      if (['true', '1', 'yes', 'y', 'on'].includes(lower)) {
+        return true;
+      }
+
+      if (['false', '0', 'no', 'n', 'off'].includes(lower)) {
+        return false;
+      }
+
+      const parsed = Number(normalized);
+      if (Number.isInteger(parsed) && parsed >= 0) {
+        return parsed;
+      }
+
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Expected a non-negative integer or boolean value'
+      });
+      return z.NEVER;
+    });
+}
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).optional(),
@@ -98,7 +150,8 @@ const envSchema = z
     DASHBOARD_PUBLIC_PATH: z.string().optional(),
     DASHBOARD_ENTRY: z.string().optional(),
     DASHBOARD_MANIFESTS: z.string().optional(),
-    HOST_REFRESH_INTERVAL_MS: integerLike()
+    HOST_REFRESH_INTERVAL_MS: integerLike(),
+    TRUST_PROXY: trustProxyLike()
   })
   .passthrough();
 
@@ -117,6 +170,8 @@ const sessionCookiePath = parsedEnv.SESSION_COOKIE_PATH ?? '/';
 const sessionCookieMaxAge = parsedEnv.SESSION_COOKIE_MAX_AGE ?? 7 * 24 * 60 * 60 * 1000;
 const sessionCookieDomain = parsedEnv.SESSION_COOKIE_DOMAIN;
 const sessionCookieName = parsedEnv.SESSION_COOKIE_NAME ?? 'nv.sid';
+
+const trustProxy = parsedEnv.TRUST_PROXY;
 
 const defaultDbFilename = path.join(projectRoot, 'nodervisor.sqlite');
 const dbClient = parsedEnv.DB_CLIENT ?? 'sqlite3';
@@ -299,6 +354,7 @@ const config = {
       domain: sessionCookieDomain
     })
   },
+  trustProxy,
   sessionSecret,
   supervisord,
   dashboard: dashboardConfig,

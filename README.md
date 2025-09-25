@@ -153,6 +153,16 @@ The Nodervisor server listens on port `3000` by default. To expose it securely b
 
 After reloading, Apache serves Nodervisor via HTTPS while forwarding requests to the Node.js server on port `3000`. Remember to keep your certificates renewed (Certbot installs a systemd timer by default) and adjust firewall rules to allow traffic on ports 80 and 443.
 
+#### Configure Nodervisor to trust the proxy
+
+When Nodervisor runs behind a reverse proxy it must trust the forwarded headers in order to detect HTTPS sessions and set secure cookies correctly. Configure this by setting the `TRUST_PROXY` environment variable before starting the server:
+
+```
+TRUST_PROXY=1
+```
+
+The value `1` tells Express to trust the first proxy hop, which is appropriate when Apache or Nginx is the only proxy in front of Nodervisor. If your traffic flows through multiple proxies (for example, a load balancer in front of Nginx), set `TRUST_PROXY` to the number of hops or use `TRUST_PROXY=true` to trust all proxies. Leave the variable unset (or set it to `false`) when clients connect directly without a reverse proxy.
+
 ### Styling the dashboard
 
 The React dashboard is bundled with Vite and no longer relies on the legacy assets that previously lived under `public/css`. Styling is split into a small design system and component-scoped CSS modules:
