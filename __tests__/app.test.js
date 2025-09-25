@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 import { beforeAll, describe, expect, it, jest } from '@jest/globals';
 
 import { createApp } from '../server/app.js';
+import { ROLE_ADMIN, ROLE_MANAGER, ROLE_NONE, ROLE_VIEWER } from '../shared/roles.js';
 
 const TEST_EMAIL = 'admin@example.com';
 const TEST_PASSWORD = 'correct-password';
@@ -73,7 +74,7 @@ function createMockSupervisordClient({ processSnapshots } = {}) {
   };
 }
 
-async function createTestApp({ userRole = 'Admin', supervisordClientOptions } = {}) {
+async function createTestApp({ userRole = ROLE_ADMIN, supervisordClientOptions } = {}) {
   const host = {
     idHost: 'alpha',
     idGroup: null,
@@ -312,7 +313,7 @@ describe('Nodervisor application', () => {
           id: expect.any(Number),
           name: expect.any(String),
           email: TEST_EMAIL,
-          role: 'Admin'
+          role: ROLE_ADMIN
         }
       }
     });
@@ -328,6 +329,60 @@ describe('Nodervisor application', () => {
           data: [{ name: 'app', group: 'app', state: 1 }]
         }
       }
+    });
+  });
+
+  it('allows managers to manage infrastructure endpoints', async () => {
+    const { app, hostRepository } = await createTestApp({ userRole: ROLE_MANAGER });
+    const agent = request.agent(app);
+
+    await login(agent);
+
+    hostRepository.listHosts.mockResolvedValueOnce([]);
+    const response = await agent.get('/api/v1/hosts');
+    expect(response.status).toBe(200);
+  });
+
+  it('prevents viewers from modifying infrastructure', async () => {
+    const { app, hostRepository } = await createTestApp({ userRole: ROLE_VIEWER });
+    const agent = request.agent(app);
+
+    await login(agent);
+
+    const response = await agent.get('/api/v1/hosts');
+    expect(response.status).toBe(403);
+    expect(hostRepository.listHosts).not.toHaveBeenCalled();
+  });
+
+  it('allows viewers to read supervisor state but blocks control actions', async () => {
+    const { app, client, host } = await createTestApp({ userRole: ROLE_VIEWER });
+    const agent = request.agent(app);
+
+    await login(agent);
+
+    const readResponse = await agent.get('/api/v1/supervisors');
+    expect(readResponse.status).toBe(200);
+    expect(client.getAllProcessInfo).toHaveBeenCalledTimes(1);
+
+    const controlResponse = await postWithCsrf(agent, '/api/v1/supervisors/control', {
+      host: host.idHost,
+      process: 'app',
+      action: 'restart'
+    });
+    expect(controlResponse.status).toBe(403);
+  });
+
+  it('requires an assigned role to access supervisor data', async () => {
+    const { app } = await createTestApp({ userRole: ROLE_NONE });
+    const agent = request.agent(app);
+
+    await login(agent);
+
+    const response = await agent.get('/api/v1/supervisors');
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({
+      status: 'error',
+      error: { message: 'Insufficient privileges' }
     });
   });
 
@@ -477,13 +532,13 @@ describe('Nodervisor application', () => {
     const response = await postWithCsrf(agent, '/api/v1/users', {
       name: 'CLI User',
       email: 'cli@example.test',
-      role: 'User',
+      role: ROLE_VIEWER,
       password: 'temporary'
     });
 
     expect(response.status).toBe(201);
     const payload = userRepository.createUser.mock.calls[0][0];
-    expect(payload).toMatchObject({ name: 'CLI User', email: 'cli@example.test', role: 'User' });
+    expect(payload).toMatchObject({ name: 'CLI User', email: 'cli@example.test', role: ROLE_VIEWER });
     expect(await bcrypt.compare('temporary', payload.passwordHash)).toBe(true);
   });
 

@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import rateLimit from 'express-rate-limit';
 
 import { ServiceError } from '../../services/errors.js';
+import { ROLE_NONE } from '../../shared/roles.js';
 
 /** @typedef {import('../../server/types.js').ServerContext} ServerContext */
 /** @typedef {import('../../server/types.js').RequestSession} RequestSession */
@@ -115,7 +116,7 @@ export function createAuthApi(context) {
         name: String(name).trim(),
         email: normalizedEmail,
         passwordHash,
-        role: 'User'
+        role: ROLE_NONE
       });
 
       if (!created) {

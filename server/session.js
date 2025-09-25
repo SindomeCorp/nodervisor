@@ -1,4 +1,5 @@
 import { ServiceError } from '../services/errors.js';
+import { ROLE_ADMIN, ROLE_NONE, resolveUserRole, userHasRole } from '../shared/roles.js';
 
 /** @typedef {import('./types.js').RequestSession} RequestSession */
 /** @typedef {import('./types.js').User} User */
@@ -32,7 +33,26 @@ export function isSessionAuthenticated(session) {
  * @returns {boolean}
  */
 export function isSessionAdmin(session) {
-  return isSessionAuthenticated(session) && getSessionUser(session)?.role === 'Admin';
+  return sessionHasRole(session, [ROLE_ADMIN]);
+}
+
+/**
+ * Determines whether the session user has one of the specified roles.
+ *
+ * @param {RequestSession | undefined | null} session
+ * @param {string[]} roles
+ * @returns {boolean}
+ */
+export function sessionHasRole(session, roles) {
+  if (!isSessionAuthenticated(session)) {
+    return false;
+  }
+
+  if (!Array.isArray(roles) || roles.length === 0) {
+    return false;
+  }
+
+  return userHasRole(getSessionUser(session), roles);
 }
 
 /**
@@ -54,6 +74,31 @@ export function ensureAuthenticatedRequest(req, res, redirectTo = '/auth/login')
 }
 
 /**
+ * Ensures the current request belongs to a user with one of the allowed roles.
+ * The return value mirrors {@link ensureAuthenticatedRequest}.
+ *
+ * @param {Request & { session?: RequestSession }} req
+ * @param {Response} res
+ * @param {string[]} roles
+ * @param {string} [redirectTo='/request-access']
+ * @returns {boolean}
+ */
+export function ensureRoleRequest(req, res, roles, redirectTo = '/request-access') {
+  if (!ensureAuthenticatedRequest(req, res)) {
+    return false;
+  }
+
+  if (!sessionHasRole(req.session, roles)) {
+    const userRole = resolveUserRole(getSessionUser(req.session));
+    const fallback = userRole === ROLE_NONE ? redirectTo : '/dashboard';
+    res.redirect(fallback);
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Ensures the current request belongs to an authenticated administrator. The
  * return value mirrors {@link ensureAuthenticatedRequest}.
  *
@@ -62,17 +107,8 @@ export function ensureAuthenticatedRequest(req, res, redirectTo = '/auth/login')
  * @param {string} [redirectTo='/dashboard']
  * @returns {boolean}
  */
-export function ensureAdminRequest(req, res, redirectTo = '/dashboard') {
-  if (!ensureAuthenticatedRequest(req, res)) {
-    return false;
-  }
-
-  if (!isSessionAdmin(req.session)) {
-    res.redirect(redirectTo);
-    return false;
-  }
-
-  return true;
+export function ensureAdminRequest(req, res, redirectTo = '/request-access') {
+  return ensureRoleRequest(req, res, [ROLE_ADMIN], redirectTo);
 }
 
 /**
@@ -93,6 +129,28 @@ export function assertSessionAuthenticated(session) {
 }
 
 /**
+ * Asserts that the current session user has one of the specified roles.
+ *
+ * @param {RequestSession | undefined | null} session
+ * @param {string[]} roles
+ * @returns {RequestSession & { loggedIn: true; user: User }}
+ * @throws {ServiceError}
+ */
+export function assertSessionRole(session, roles) {
+  const authenticatedSession = assertSessionAuthenticated(session);
+
+  if (!Array.isArray(roles) || roles.length === 0) {
+    throw new ServiceError('Insufficient privileges', 403);
+  }
+
+  if (!sessionHasRole(authenticatedSession, roles)) {
+    throw new ServiceError('Insufficient privileges', 403);
+  }
+
+  return authenticatedSession;
+}
+
+/**
  * Asserts that the current session user is an administrator. Throws a
  * {@link ServiceError} when the requirement is not satisfied.
  *
@@ -101,11 +159,5 @@ export function assertSessionAuthenticated(session) {
  * @throws {ServiceError}
  */
 export function assertSessionAdmin(session) {
-  const authenticatedSession = assertSessionAuthenticated(session);
-
-  if (!isSessionAdmin(authenticatedSession)) {
-    throw new ServiceError('Insufficient privileges', 403);
-  }
-
-  return authenticatedSession;
+  return assertSessionRole(session, [ROLE_ADMIN]);
 }

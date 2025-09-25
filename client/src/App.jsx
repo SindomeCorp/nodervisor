@@ -26,9 +26,18 @@ import UsersListPage from './pages/UsersListPage.jsx';
 import UserFormPage from './pages/UserFormPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
+import RequestAccessPage from './pages/RequestAccessPage.jsx';
 import { createAuthClient } from './apiClient.js';
 import layoutStyles from './AppLayout.module.css';
 import ui from './styles/ui.module.css';
+import {
+  ROLE_ADMIN,
+  ROLE_MANAGER,
+  ROLE_NONE,
+  ROLE_VIEWER,
+  resolveUserRole,
+  userHasRole
+} from '../../shared/roles.js';
 
 export const SessionContext = createContext({
   user: null,
@@ -143,7 +152,9 @@ function LoadingView({ message = 'Loading…' }) {
 
 function Layout() {
   const { user, logout } = useSession();
-  const isAdmin = user?.role === 'Admin';
+  const canViewDashboard = userHasRole(user, [ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER]);
+  const canManageInfrastructure = userHasRole(user, [ROLE_ADMIN, ROLE_MANAGER]);
+  const canManageUsers = userHasRole(user, [ROLE_ADMIN]);
   const [logoutError, setLogoutError] = useState(null);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -171,12 +182,14 @@ function Layout() {
           </h1>
           <nav aria-label="Primary navigation">
             <ul className={layoutStyles.navList}>
-              <li>
-                <Link to="/dashboard" className={layoutStyles.navLink}>
-                  Dashboard
-                </Link>
-              </li>
-              {isAdmin && (
+              {canViewDashboard && (
+                <li>
+                  <Link to="/dashboard" className={layoutStyles.navLink}>
+                    Dashboard
+                  </Link>
+                </li>
+              )}
+              {canManageInfrastructure && (
                 <>
                   <li>
                     <Link to="/hosts" className={layoutStyles.navLink}>
@@ -188,12 +201,14 @@ function Layout() {
                       Groups
                     </Link>
                   </li>
-                  <li>
-                    <Link to="/users" className={layoutStyles.navLink}>
-                      Users
-                    </Link>
-                  </li>
                 </>
+              )}
+              {canManageUsers && (
+                <li>
+                  <Link to="/users" className={layoutStyles.navLink}>
+                    Users
+                  </Link>
+                </li>
               )}
               <li>
                 <button
@@ -225,7 +240,8 @@ function Layout() {
 
 function RequireAuth() {
   const location = useLocation();
-  const { status } = useSession();
+  const { status, user } = useSession();
+  const role = resolveUserRole(user);
 
   if (status === 'loading') {
     return <LoadingView message="Checking session…" />;
@@ -235,15 +251,25 @@ function RequireAuth() {
     return <Navigate to="/auth/login" state={{ from: location }} replace />;
   }
 
+  if (
+    role === ROLE_NONE &&
+    !location.pathname.startsWith('/request-access') &&
+    !location.pathname.startsWith('/auth')
+  ) {
+    return <Navigate to="/request-access" state={{ from: location }} replace />;
+  }
+
   return <Outlet />;
 }
 
-function RequireAdmin({ children }) {
+function RequireRole({ allowedRoles, children }) {
   const { user } = useSession();
   const location = useLocation();
+  const role = resolveUserRole(user);
 
-  if (user?.role !== 'Admin') {
-    return <Navigate to="/dashboard" state={{ from: location }} replace />;
+  if (!userHasRole(user, allowedRoles)) {
+    const redirectTo = role === ROLE_NONE ? '/request-access' : '/dashboard';
+    return <Navigate to={redirectTo} state={{ from: location }} replace />;
   }
 
   return children;
@@ -271,79 +297,87 @@ export default function App({ initialState }) {
           <Route element={<RequireAuth />}>
             <Route element={<Layout />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
+              <Route
+                path="dashboard"
+                element={
+                  <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER]}>
+                    <Dashboard />
+                  </RequireRole>
+                }
+              />
               <Route
                 path="hosts"
                 element={
-                  <RequireAdmin>
+                  <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
                     <HostsListPage />
-                  </RequireAdmin>
+                  </RequireRole>
                 }
               />
               <Route
                 path="hosts/new"
                 element={
-                  <RequireAdmin>
+                  <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
                     <HostFormPage mode="create" />
-                  </RequireAdmin>
+                  </RequireRole>
                 }
               />
               <Route
                 path="hosts/:hostId"
                 element={
-                  <RequireAdmin>
+                  <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
                     <HostFormPage mode="edit" />
-                  </RequireAdmin>
+                  </RequireRole>
                 }
               />
               <Route
                 path="groups"
                 element={
-                  <RequireAdmin>
+                  <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
                     <GroupsListPage />
-                  </RequireAdmin>
+                  </RequireRole>
                 }
               />
               <Route
                 path="groups/new"
                 element={
-                  <RequireAdmin>
+                  <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
                     <GroupFormPage mode="create" />
-                  </RequireAdmin>
+                  </RequireRole>
                 }
               />
               <Route
                 path="groups/:groupId"
                 element={
-                  <RequireAdmin>
+                  <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER]}>
                     <GroupFormPage mode="edit" />
-                  </RequireAdmin>
+                  </RequireRole>
                 }
               />
               <Route
                 path="users"
                 element={
-                  <RequireAdmin>
+                  <RequireRole allowedRoles={[ROLE_ADMIN]}>
                     <UsersListPage />
-                  </RequireAdmin>
+                  </RequireRole>
                 }
               />
               <Route
                 path="users/new"
                 element={
-                  <RequireAdmin>
+                  <RequireRole allowedRoles={[ROLE_ADMIN]}>
                     <UserFormPage mode="create" />
-                  </RequireAdmin>
+                  </RequireRole>
                 }
               />
               <Route
                 path="users/:userId"
                 element={
-                  <RequireAdmin>
+                  <RequireRole allowedRoles={[ROLE_ADMIN]}>
                     <UserFormPage mode="edit" />
-                  </RequireAdmin>
+                  </RequireRole>
                 }
               />
+              <Route path="request-access" element={<RequestAccessPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Route>

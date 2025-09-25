@@ -3,14 +3,21 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { requestJson } from '../apiClient.js';
 import ui from '../styles/ui.module.css';
+import { ALL_ROLES, ROLE_VIEWER } from '../../shared/roles.js';
 
-const ROLES = ['Admin', 'User'];
+const ROLE_OPTIONS = ALL_ROLES;
+const DEFAULT_ROLE = ROLE_VIEWER;
 
 export default function UserFormPage({ mode }) {
   const isEdit = mode === 'edit';
   const { userId } = useParams();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: '', email: '', role: ROLES[0], password: '' });
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    role: ROLE_OPTIONS.includes(DEFAULT_ROLE) ? DEFAULT_ROLE : ROLE_OPTIONS[0],
+    password: ''
+  });
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -28,7 +35,12 @@ export default function UserFormPage({ mode }) {
         if (cancelled) {
           return;
         }
-        setForm({ name: data?.name ?? '', email: data?.email ?? '', role: data?.role ?? ROLES[0], password: '' });
+        setForm({
+          name: data?.name ?? '',
+          email: data?.email ?? '',
+          role: data?.role && ROLE_OPTIONS.includes(data.role) ? data.role : DEFAULT_ROLE,
+          password: ''
+        });
         setError(null);
       } catch (err) {
         if (!cancelled) {
@@ -142,7 +154,7 @@ export default function UserFormPage({ mode }) {
               Role
             </label>
             <select id="role" name="role" className={ui.formControl} value={form.role} onChange={handleChange}>
-              {ROLES.map((role) => (
+              {ROLE_OPTIONS.map((role) => (
                 <option key={role} value={role}>
                   {role}
                 </option>

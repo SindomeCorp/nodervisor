@@ -2,6 +2,7 @@ import knex from 'knex';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from '@jest/globals';
 
 import { createUsersRepository } from '../../data/users.js';
+import { ROLE_ADMIN, ROLE_MANAGER, ROLE_NONE, ROLE_VIEWER } from '../../shared/roles.js';
 
 let db;
 let usersRepository;
@@ -37,14 +38,14 @@ describe('users repository', () => {
       name: 'Ada Lovelace',
       email: 'ada@example.com',
       passwordHash: 'hashed',
-      role: 'Admin'
+      role: ROLE_ADMIN
     });
 
     expect(user).toEqual({
       id: expect.any(Number),
       name: 'Ada Lovelace',
       email: 'ada@example.com',
-      role: 'Admin'
+      role: ROLE_ADMIN
     });
 
     const stored = await db('users').first();
@@ -56,7 +57,7 @@ describe('users repository', () => {
       name: 'Grace Hopper',
       email: 'grace@example.com',
       passwordHash: 'hashed-password',
-      role: 'User'
+      role: ROLE_VIEWER
     });
 
     const user = await usersRepository.findByEmail('grace@example.com');
@@ -64,7 +65,7 @@ describe('users repository', () => {
       id: expect.any(Number),
       name: 'Grace Hopper',
       email: 'grace@example.com',
-      role: 'User',
+      role: ROLE_VIEWER,
       passwordHash: 'hashed-password'
     });
   });
@@ -74,20 +75,20 @@ describe('users repository', () => {
       name: 'Linus Torvalds',
       email: 'linus@example.com',
       passwordHash: 'initial',
-      role: 'User'
+      role: ROLE_NONE
     });
 
     const updated = await usersRepository.updateUser(user.id, {
       name: 'Linus',
       email: 'linus@example.com',
-      role: 'Admin'
+      role: ROLE_MANAGER
     });
 
     expect(updated).toEqual({
       id: user.id,
       name: 'Linus',
       email: 'linus@example.com',
-      role: 'Admin'
+      role: ROLE_MANAGER
     });
 
     const stored = await db('users').where('id', user.id).first();
@@ -99,13 +100,13 @@ describe('users repository', () => {
       name: 'Margaret Hamilton',
       email: 'margaret@example.com',
       passwordHash: 'before',
-      role: 'Admin'
+      role: ROLE_ADMIN
     });
 
     await usersRepository.updateUser(user.id, {
       name: 'Margaret Hamilton',
       email: 'margaret@example.com',
-      role: 'Admin',
+      role: ROLE_ADMIN,
       passwordHash: 'after'
     });
 
@@ -118,7 +119,7 @@ describe('users repository', () => {
       name: 'Barbara Liskov',
       email: 'barbara@example.com',
       passwordHash: 'secret',
-      role: 'User'
+      role: ROLE_VIEWER
     });
 
     const deleted = await usersRepository.deleteUser(user.id);

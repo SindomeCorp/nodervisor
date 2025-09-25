@@ -2,12 +2,8 @@ import { Router } from 'express';
 
 import { SupervisordService } from '../services/supervisordService.js';
 import { ServiceError } from '../services/errors.js';
-import {
-  assertSessionAdmin,
-  assertSessionAuthenticated,
-  ensureAdminRequest,
-  ensureAuthenticatedRequest
-} from '../server/session.js';
+import { assertSessionAuthenticated, assertSessionRole, ensureAuthenticatedRequest, ensureRoleRequest } from '../server/session.js';
+import { ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER } from '../shared/roles.js';
 import { renderAppPage } from '../server/renderAppPage.js';
 import { createHostsApi } from './api/hosts.js';
 import { createGroupsApi } from './api/groups.js';
@@ -54,10 +50,13 @@ export function createRouter(context) {
     return Number.isFinite(parsed) ? parsed : fallback;
   };
 
-  const serveApp = ({ title, requireAdmin = false, requireAuth = true }) => (req, res) => {
+  const serveApp = ({ title, requiredRoles = null, requireAuth = true }) => (req, res) => {
     if (requireAuth) {
-      const ensure = requireAdmin ? ensureAdminRequest : ensureAuthenticatedRequest;
-      if (!ensure(req, res)) {
+      if (Array.isArray(requiredRoles) && requiredRoles.length > 0) {
+        if (!ensureRoleRequest(req, res, requiredRoles)) {
+          return;
+        }
+      } else if (!ensureAuthenticatedRequest(req, res)) {
         return;
       }
     }
@@ -71,16 +70,29 @@ export function createRouter(context) {
   };
 
   router.get(['/auth', '/auth/*'], serveApp({ title: 'Nodervisor - Sign in', requireAuth: false }));
-  router.get('/', serveApp({ title: 'Nodervisor - Dashboard' }));
-  router.get('/dashboard', serveApp({ title: 'Nodervisor - Dashboard' }));
-  router.get(['/hosts', '/hosts/*'], serveApp({ title: 'Nodervisor - Hosts', requireAdmin: true }));
-  router.get(['/groups', '/groups/*'], serveApp({ title: 'Nodervisor - Groups', requireAdmin: true }));
-  router.get(['/users', '/users/*'], serveApp({ title: 'Nodervisor - Users', requireAdmin: true }));
+  router.get('/', serveApp({ title: 'Nodervisor - Dashboard', requiredRoles: [ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER] }));
+  router.get(
+    '/dashboard',
+    serveApp({ title: 'Nodervisor - Dashboard', requiredRoles: [ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER] })
+  );
+  router.get(
+    ['/hosts', '/hosts/*'],
+    serveApp({ title: 'Nodervisor - Hosts', requiredRoles: [ROLE_ADMIN, ROLE_MANAGER] })
+  );
+  router.get(
+    ['/groups', '/groups/*'],
+    serveApp({ title: 'Nodervisor - Groups', requiredRoles: [ROLE_ADMIN, ROLE_MANAGER] })
+  );
+  router.get(['/users', '/users/*'], serveApp({ title: 'Nodervisor - Users', requiredRoles: [ROLE_ADMIN] }));
+  router.get(
+    ['/request-access', '/request-access/*'],
+    serveApp({ title: 'Nodervisor - Access Required', requireAuth: true })
+  );
 
   router.get(
     '/api/v1/supervisors',
     handleRoute(async (req, res) => {
-      assertSessionAuthenticated(req.session);
+      assertSessionRole(req.session, [ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER]);
       const data = await supervisordService.fetchAllProcessInfo();
       respondSuccess(res, data);
     })
@@ -89,7 +101,7 @@ export function createRouter(context) {
   router.get(
     '/api/v1/supervisors/stream',
     handleRoute((req, res) => {
-      assertSessionAuthenticated(req.session);
+      assertSessionRole(req.session, [ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER]);
 
       res.set({
         'Content-Type': 'text/event-stream',
@@ -166,7 +178,7 @@ export function createRouter(context) {
   router.post(
     '/api/v1/supervisors/control',
     handleRoute(async (req, res) => {
-      assertSessionAdmin(req.session);
+      assertSessionRole(req.session, [ROLE_ADMIN, ROLE_MANAGER]);
       const { host, process, action } = req.body ?? {};
       const result = await supervisordService.controlProcess({
         hostId: host,
@@ -180,7 +192,7 @@ export function createRouter(context) {
   router.get(
     '/api/v1/supervisors/logs',
     handleRoute(async (req, res) => {
-      assertSessionAdmin(req.session);
+      assertSessionRole(req.session, [ROLE_ADMIN, ROLE_MANAGER]);
       const { host, process, type, offset, length } = req.query;
       const data = await supervisordService.getProcessLog({
         hostId: host,
@@ -196,7 +208,7 @@ export function createRouter(context) {
   router.post(
     '/api/v1/supervisors/logs/clear',
     handleRoute(async (req, res) => {
-      assertSessionAdmin(req.session);
+      assertSessionRole(req.session, [ROLE_ADMIN, ROLE_MANAGER]);
       const { host, process } = req.body ?? {};
       const data = await supervisordService.getProcessLog({
         hostId: host,
