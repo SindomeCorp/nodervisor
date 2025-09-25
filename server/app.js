@@ -26,7 +26,7 @@ const projectRoot = path.resolve(__dirname, '..');
  * @param {ServerContext} context
  */
 export function createApp(context) {
-  const { config, db, supervisordapi, sessionStore } = context;
+  const { config, sessionStore } = context;
   const app = express();
 
   app.set('port', config.port);
