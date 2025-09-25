@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
-import { assertSessionAdmin } from '../../server/session.js';
+import { assertSessionRole } from '../../server/session.js';
+import { ROLE_ADMIN, ROLE_MANAGER } from '../../shared/roles.js';
 import { validateRequest } from '../middleware/validation.js';
 import { handleRouteError, sendError } from './utils.js';
 
@@ -16,7 +17,7 @@ export function createHostsApi(context) {
 
   router.get('/', async (req, res) => {
     try {
-      assertSessionAdmin(req.session);
+      assertSessionRole(req.session, [ROLE_ADMIN, ROLE_MANAGER]);
       const hosts = await hostRepository.listHosts();
       res.json({ status: 'success', data: hosts });
     } catch (err) {
@@ -29,7 +30,7 @@ export function createHostsApi(context) {
     validateRequest({ body: hostPayloadSchema }),
     async (req, res) => {
       try {
-        assertSessionAdmin(req.session);
+        assertSessionRole(req.session, [ROLE_ADMIN, ROLE_MANAGER]);
         const payload = req.validated.body;
 
         const created = await hostRepository.createHost(payload);
@@ -46,7 +47,7 @@ export function createHostsApi(context) {
     validateRequest({ params: hostIdParamsSchema }),
     async (req, res) => {
       try {
-        assertSessionAdmin(req.session);
+        assertSessionRole(req.session, [ROLE_ADMIN, ROLE_MANAGER]);
         const { id } = req.validated.params;
 
         const host = await hostRepository.getHostById(id);
@@ -67,7 +68,7 @@ export function createHostsApi(context) {
     validateRequest({ params: hostIdParamsSchema, body: hostPayloadSchema }),
     async (req, res) => {
       try {
-        assertSessionAdmin(req.session);
+        assertSessionRole(req.session, [ROLE_ADMIN, ROLE_MANAGER]);
         const { id } = req.validated.params;
         const payload = req.validated.body;
 
@@ -90,7 +91,7 @@ export function createHostsApi(context) {
     validateRequest({ params: hostIdParamsSchema }),
     async (req, res) => {
       try {
-        assertSessionAdmin(req.session);
+        assertSessionRole(req.session, [ROLE_ADMIN, ROLE_MANAGER]);
         const { id } = req.validated.params;
 
         const existing = await hostRepository.getHostById(id);

@@ -1,4 +1,5 @@
 import { resolveInsertedId } from './utils.js';
+import { ROLE_NONE } from '../shared/roles.js';
 
 /** @typedef {import('../server/types.js').Knex} Knex */
 /** @typedef {import('../server/types.js').User} User */
@@ -27,7 +28,7 @@ export function createUsersRepository(db) {
       id: row.id,
       name: row.Name,
       email: row.Email,
-      role: row.Role
+      role: row.Role ?? ROLE_NONE
     };
 
     if (includePassword) {

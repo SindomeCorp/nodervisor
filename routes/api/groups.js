@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
-import { assertSessionAdmin } from '../../server/session.js';
+import { assertSessionRole } from '../../server/session.js';
+import { ROLE_ADMIN, ROLE_MANAGER } from '../../shared/roles.js';
 import { validateRequest } from '../middleware/validation.js';
 import { handleRouteError, sendError } from './utils.js';
 
@@ -15,7 +16,7 @@ export function createGroupsApi(context) {
 
   router.get('/', async (req, res) => {
     try {
-      assertSessionAdmin(req.session);
+      assertSessionRole(req.session, [ROLE_ADMIN, ROLE_MANAGER]);
       const groups = await groupRepository.listGroups();
       res.json({ status: 'success', data: groups });
     } catch (err) {
@@ -28,7 +29,7 @@ export function createGroupsApi(context) {
     validateRequest({ body: groupPayloadSchema }),
     async (req, res) => {
       try {
-        assertSessionAdmin(req.session);
+        assertSessionRole(req.session, [ROLE_ADMIN, ROLE_MANAGER]);
         const payload = req.validated.body;
 
         const created = await groupRepository.createGroup(payload);
@@ -44,7 +45,7 @@ export function createGroupsApi(context) {
     validateRequest({ params: groupIdParamsSchema }),
     async (req, res) => {
       try {
-        assertSessionAdmin(req.session);
+        assertSessionRole(req.session, [ROLE_ADMIN, ROLE_MANAGER]);
         const { id } = req.validated.params;
 
         const group = await groupRepository.getGroupById(id);
@@ -65,7 +66,7 @@ export function createGroupsApi(context) {
     validateRequest({ params: groupIdParamsSchema, body: groupPayloadSchema }),
     async (req, res) => {
       try {
-        assertSessionAdmin(req.session);
+        assertSessionRole(req.session, [ROLE_ADMIN, ROLE_MANAGER]);
         const { id } = req.validated.params;
         const payload = req.validated.body;
 
@@ -87,7 +88,7 @@ export function createGroupsApi(context) {
     validateRequest({ params: groupIdParamsSchema }),
     async (req, res) => {
       try {
-        assertSessionAdmin(req.session);
+        assertSessionRole(req.session, [ROLE_ADMIN, ROLE_MANAGER]);
         const { id } = req.validated.params;
 
         const existing = await groupRepository.getGroupById(id);

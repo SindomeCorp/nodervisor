@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 import { createHostsApi } from '../../routes/api/hosts.js';
 import { createGroupsApi } from '../../routes/api/groups.js';
 import { createUsersApi } from '../../routes/api/users.js';
+import { ROLE_ADMIN, ROLE_VIEWER } from '../../shared/roles.js';
 
 describe('API validation middleware', () => {
   afterEach(() => {
@@ -122,7 +123,7 @@ describe('API validation middleware', () => {
 
     it('hashes the password when creating a user', async () => {
       const hashSpy = jest.spyOn(bcrypt, 'hash').mockResolvedValue('hashed-password');
-      const createdUser = { id: 1, name: 'Admin', email: 'admin@example.com', role: 'Admin' };
+      const createdUser = { id: 1, name: 'Admin', email: 'admin@example.com', role: ROLE_ADMIN };
       userRepository.createUser.mockResolvedValue(createdUser);
 
       const response = await request(app)
@@ -130,7 +131,7 @@ describe('API validation middleware', () => {
         .send({
           name: ' Admin ',
           email: ' admin@example.com ',
-          role: ' Admin ',
+          role: ` ${ROLE_ADMIN} `,
           password: 'super-secret'
         });
 
@@ -139,7 +140,7 @@ describe('API validation middleware', () => {
       expect(userRepository.createUser).toHaveBeenCalledWith({
         name: 'Admin',
         email: 'admin@example.com',
-        role: 'Admin',
+        role: ROLE_ADMIN,
         passwordHash: 'hashed-password'
       });
       hashSpy.mockRestore();
@@ -149,7 +150,7 @@ describe('API validation middleware', () => {
       const response = await request(app).put('/users/NaN').send({
         name: 'Test',
         email: 'test@example.com',
-        role: 'User'
+        role: ROLE_VIEWER
       });
 
       expect(response.status).toBe(400);

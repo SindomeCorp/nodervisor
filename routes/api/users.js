@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import { z } from 'zod';
 
 import { assertSessionAdmin } from '../../server/session.js';
+import { ALL_ROLES } from '../../shared/roles.js';
 import { validateRequest } from '../middleware/validation.js';
 import { handleRouteError, sendError } from './utils.js';
 
@@ -120,17 +121,19 @@ export function createUsersApi(context) {
   return router;
 }
 
+const roleSchema = requiredTrimmedString('Role').refine((value) => ALL_ROLES.includes(value), 'Invalid role.');
+
 const userCreateSchema = z.object({
   name: requiredTrimmedString('Name'),
   email: requiredTrimmedString('Email'),
-  role: requiredTrimmedString('Role'),
+  role: roleSchema,
   password: requiredTrimmedString('Password')
 });
 
 const userUpdateSchema = z.object({
   name: requiredTrimmedString('Name'),
   email: requiredTrimmedString('Email'),
-  role: requiredTrimmedString('Role'),
+  role: roleSchema,
   password: requiredTrimmedString('Password').optional()
 });
 
