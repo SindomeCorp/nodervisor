@@ -4,15 +4,19 @@
 
 import bcrypt from 'bcrypt';
 
-export function users(params) {
-  const { db } = params;
-  return async function (req, res, next) {
-    if (!req.session.loggedIn) {
-      return res.redirect('/login');
-    }
+import { ensureAdminRequest } from '../server/session.js';
 
-    if (req.session.user.Role !== 'Admin') {
-      return res.redirect('/dashboard');
+/** @typedef {import('../server/types.js').ServerContext} ServerContext */
+
+/**
+ * @param {ServerContext} context
+ * @returns {import('../server/types.js').RequestHandler}
+ */
+export function users(context) {
+  const { db } = context;
+  return async function (req, res, next) {
+    if (!ensureAdminRequest(req, res)) {
+      return;
     }
 
     try {

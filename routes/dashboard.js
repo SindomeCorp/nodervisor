@@ -2,10 +2,18 @@
  * GET supervisord page
  */
 
-export function dashboard() {
+import { ensureAuthenticatedRequest } from '../server/session.js';
+
+/** @typedef {import('../server/types.js').ServerContext} ServerContext */
+
+/**
+ * @param {ServerContext} _context
+ * @returns {import('../server/types.js').RequestHandler}
+ */
+export function dashboard(_context) {
   return function (req, res) {
-    if (!req.session.loggedIn) {
-      return res.redirect('/login');
+    if (!ensureAuthenticatedRequest(req, res)) {
+      return;
     }
 
     return res.render('dashboard', {

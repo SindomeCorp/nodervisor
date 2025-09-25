@@ -12,11 +12,21 @@ import { fileURLToPath } from 'url';
 
 import { createRouter } from '../routes/index.js';
 
+/** @typedef {import('./types.js').ServerContext} ServerContext */
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 
-export function createApp({ config, db, supervisordapi, sessionStore }) {
+/**
+ * Constructs the primary Express application using the provided server
+ * context. The context keeps configuration, database connections and other
+ * shared services consistent across the backend modules.
+ *
+ * @param {ServerContext} context
+ */
+export function createApp(context) {
+  const { config, db, supervisordapi, sessionStore } = context;
   const app = express();
 
   app.set('port', config.port);
@@ -49,7 +59,7 @@ export function createApp({ config, db, supervisordapi, sessionStore }) {
     app.use(errorhandler());
   }
 
-  const router = createRouter({ app, config, db, supervisordapi });
+  const router = createRouter(context);
   app.use(router);
 
   return app;

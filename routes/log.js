@@ -2,15 +2,19 @@
  * GET log page
  */
 
-export function log(params) {
-  const { config } = params;
-  return function (req, res) {
-    if (!req.session.loggedIn) {
-      return res.redirect('/login');
-    }
+import { ensureAdminRequest } from '../server/session.js';
 
-    if (req.session.user.Role !== 'Admin') {
-      return res.redirect('/dashboard');
+/** @typedef {import('../server/types.js').ServerContext} ServerContext */
+
+/**
+ * @param {ServerContext} context
+ * @returns {import('../server/types.js').RequestHandler}
+ */
+export function log(context) {
+  const { config } = context;
+  return function (req, res) {
+    if (!ensureAdminRequest(req, res)) {
+      return;
     }
 
     if (req.params.host && req.params.process) {

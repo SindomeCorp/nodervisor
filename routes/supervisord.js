@@ -2,14 +2,18 @@
  * GET supervisord page
  */
 
-export function supervisord() {
-  return function (req, res) {
-    if (!req.session.loggedIn) {
-      return res.redirect('/login');
-    }
+import { ensureAdminRequest } from '../server/session.js';
 
-    if (req.session.user.Role !== 'Admin') {
-      return res.redirect('/dashboard');
+/** @typedef {import('../server/types.js').ServerContext} ServerContext */
+
+/**
+ * @param {ServerContext} _context
+ * @returns {import('../server/types.js').RequestHandler}
+ */
+export function supervisord(_context) {
+  return function (req, res) {
+    if (!ensureAdminRequest(req, res)) {
+      return;
     }
 
     return res.render('supervisord', {

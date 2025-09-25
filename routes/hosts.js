@@ -2,14 +2,19 @@
  * GET/POST hosts page
  */
 
-export function hosts(params) {
-  const { db, config } = params;
+import { ensureAdminRequest } from '../server/session.js';
+
+/** @typedef {import('../server/types.js').ServerContext} ServerContext */
+
+/**
+ * @param {ServerContext} context
+ * @returns {import('../server/types.js').RequestHandler}
+ */
+export function hosts(context) {
+  const { db, config } = context;
   return async function (req, res, next) {
-    if (!req.session.loggedIn) {
-      return res.redirect('/login');
-    }
-    if (req.session.user.Role !== 'Admin') {
-      return res.redirect('/dashboard');
+    if (!ensureAdminRequest(req, res)) {
+      return;
     }
 
     try {
