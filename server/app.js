@@ -1,6 +1,6 @@
 import express from 'express';
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import favicon from 'serve-favicon';
 import morgan from 'morgan';
 import methodOverride from 'method-override';
@@ -9,7 +9,7 @@ import session from 'express-session';
 import errorhandler from 'errorhandler';
 import helmet from 'helmet';
 import csurf from 'csurf';
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from 'node:url';
 
 import { createRouter } from '../routes/index.js';
 
