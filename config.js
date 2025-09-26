@@ -173,7 +173,7 @@ const sessionCookieDomain = parsedEnv.SESSION_COOKIE_DOMAIN;
 const sessionCookieName = parsedEnv.SESSION_COOKIE_NAME ?? 'nv.sid';
 
 const trustProxy = parsedEnv.TRUST_PROXY;
-const authAllowSelfRegistration = parsedEnv.AUTH_ALLOW_SELF_REGISTRATION ?? true;
+const authAllowSelfRegistration = parsedEnv.AUTH_ALLOW_SELF_REGISTRATION ?? false;
 
 const defaultDbFilename = path.join(projectRoot, 'nodervisor.sqlite');
 const dbClient = parsedEnv.DB_CLIENT ?? 'sqlite3';

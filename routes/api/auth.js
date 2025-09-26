@@ -19,7 +19,7 @@ export function createAuthApi(context) {
   } = context;
   const sessionCookieName = config?.session?.name ?? 'connect.sid';
   const sessionCookieConfig = config?.session?.cookie;
-  const isRegistrationAllowed = () => Boolean(config?.auth?.allowSelfRegistration ?? true);
+  const isRegistrationAllowed = () => Boolean(config?.auth?.allowSelfRegistration ?? false);
 
   const loginLimiter = rateLimit({
     windowMs: 60 * 1000,
