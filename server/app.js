@@ -108,6 +108,40 @@ export function createApp(context) {
     req.session.lastActivityAt = now;
     next();
   });
+  const userRepository = context?.data?.users;
+  app.use((req, res, next) => {
+    if (!req.session?.user?.id || !userRepository?.getUserById) {
+      next();
+      return;
+    }
+
+    const userId = req.session.user.id;
+    userRepository
+      .getUserById(userId)
+      .then((user) => {
+        if (!user) {
+          req.session.loggedIn = false;
+          req.session.user = null;
+          next();
+          return;
+        }
+
+        const currentUser = req.session.user ?? {};
+        const hasChanges =
+          currentUser.name !== user.name ||
+          currentUser.email !== user.email ||
+          currentUser.role !== user.role;
+
+        if (hasChanges) {
+          req.session.user = { ...currentUser, ...user };
+        }
+
+        next();
+      })
+      .catch((err) => {
+        next(err);
+      });
+  });
   const csrfProtection = csurf({
     cookie: {
       httpOnly: true,
