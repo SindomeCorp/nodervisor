@@ -88,10 +88,10 @@ export class SupervisordService {
         try {
           const client = this.#createClient(host);
           const data = await this.#callClient(client, 'getAllProcessInfo');
-          return [hostId, { host, data }];
+          return [hostId, { host: this.#cloneHostForResponse(host), data }];
         } catch (err) {
           const error = err instanceof ServiceError ? err : this.#wrapRpcError(err);
-          return [hostId, { host, error: this.#serializeError(error) }];
+          return [hostId, { host: this.#cloneHostForResponse(host), error: this.#serializeError(error) }];
         }
       })
     );
@@ -350,6 +350,49 @@ export class SupervisordService {
     }
 
     return payload;
+  }
+
+  #cloneHostForResponse(host) {
+    if (!host || typeof host !== 'object') {
+      return null;
+    }
+
+    const cloned = { ...host };
+    delete cloned.override;
+
+    if (typeof cloned.Url === 'string') {
+      cloned.Url = this.#stripUrlCredentials(cloned.Url);
+    }
+
+    return cloned;
+  }
+
+  #stripUrlCredentials(url) {
+    if (typeof url !== 'string') {
+      return url;
+    }
+
+    if (!url.includes('@')) {
+      return url;
+    }
+
+    try {
+      const parsed = new URL(url);
+      if (!parsed.username && !parsed.password) {
+        return url;
+      }
+
+      parsed.username = '';
+      parsed.password = '';
+
+      const needsTrailingSlash =
+        parsed.pathname === '/' && !url.replace(/^[^:]+:\/\//, '').includes('/');
+      const sanitizedPath = needsTrailingSlash ? '' : parsed.pathname;
+
+      return `${parsed.protocol}//${parsed.host}${sanitizedPath}${parsed.search}${parsed.hash}`;
+    } catch {
+      return url.replace(/^([a-zA-Z][a-zA-Z\d+\-.]*:\/\/)(?:[^@]*@)(.+)$/, '$1$2');
+    }
   }
 }
 
