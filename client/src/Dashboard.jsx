@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { requestJson } from './apiClient.js';
+import { ansiToHtml } from './utils/ansiToHtml.js';
 import {
   STATUS_META,
   StatusIcon,
@@ -396,6 +397,14 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
   };
 
   const logLabel = activeTab === 'out' ? 'stdout' : 'stderr';
+  const logContentText =
+    typeof tabState.content === 'string' && tabState.content.length > 0
+      ? tabState.content
+      : `No ${logLabel} output.`;
+  const renderedLogHtml = useMemo(
+    () => ansiToHtml(logContentText),
+    [logContentText]
+  );
 
   return (
     <div className={dashboardStyles.logOverlay} role="presentation">
@@ -444,9 +453,10 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
           {tabState.loading && tabState.loadingMode !== 'append' && !tabState.content ? (
             <p>Loading {logLabel} log…</p>
           ) : (
-            <pre className={dashboardStyles.logPre}>
-              {tabState.content || `No ${logLabel} output.`}
-            </pre>
+            <pre
+              className={dashboardStyles.logPre}
+              dangerouslySetInnerHTML={{ __html: renderedLogHtml }}
+            />
           )}
         </div>
         <div className={dashboardStyles.logFooter}>
