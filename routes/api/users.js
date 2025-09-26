@@ -97,6 +97,10 @@ export function createUsersApi(context) {
           return;
         }
 
+        if (req.session?.user && req.session.user.id === updated.id) {
+          req.session.user = { ...req.session.user, ...updated };
+        }
+
         res.json({ status: 'success', data: updated });
       } catch (err) {
         if (err instanceof EmailAlreadyExistsError) {

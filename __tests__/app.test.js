@@ -355,6 +355,40 @@ describe('Nodervisor application', () => {
     expect(entry?.host).not.toHaveProperty('override');
   });
 
+  it('updates the session when a user changes their own role', async () => {
+    const { app, userRepository, userRecord } = await createTestApp();
+    const agent = request.agent(app);
+
+    await login(agent);
+
+    const updatedUser = {
+      id: userRecord.id,
+      name: userRecord.name,
+      email: userRecord.email,
+      role: ROLE_MANAGER
+    };
+
+    userRepository.updateUser.mockResolvedValueOnce(updatedUser);
+
+    const updateResponse = await putWithCsrf(agent, `/api/v1/users/${userRecord.id}`, {
+      name: userRecord.name,
+      email: userRecord.email,
+      role: ROLE_MANAGER
+    });
+
+    expect(updateResponse.status).toBe(200);
+    expect(updateResponse.body).toEqual({ status: 'success', data: updatedUser });
+    expect(userRepository.updateUser).toHaveBeenCalledWith(userRecord.id, {
+      name: userRecord.name,
+      email: userRecord.email,
+      role: ROLE_MANAGER
+    });
+
+    const sessionResponse = await agent.get('/api/auth/session');
+    expect(sessionResponse.status).toBe(200);
+    expect(sessionResponse.body?.data?.user).toEqual(updatedUser);
+  });
+
   it('omits override credentials from supervisor responses', async () => {
     const hostOverride = {
       Url: 'http://user:secret@host-1/RPC2',
