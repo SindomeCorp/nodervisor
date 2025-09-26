@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { requestJson } from './apiClient.js';
 import {
@@ -77,6 +77,38 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
   const [logState, setLogState] = useState(() => createLogState());
   const [reloadToken, setReloadToken] = useState(0);
   const [clearing, setClearing] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const appendModeRef = useRef(false);
+  const logStateRef = useRef(logState);
+  const storageKey = hostId ? `nodervisor:logAutoRefresh:${hostId}` : null;
+
+  useEffect(() => {
+    logStateRef.current = logState;
+  }, [logState]);
+
+  useEffect(() => {
+    if (!storageKey || typeof window === 'undefined') {
+      setAutoRefresh(false);
+      return;
+    }
+
+    let storedValue = false;
+    try {
+      storedValue = window.localStorage.getItem(storageKey) === 'true';
+    } catch (_err) {
+      storedValue = false;
+    }
+
+    setAutoRefresh(storedValue);
+  }, [storageKey]);
+
+  const triggerReload = useCallback(
+    (append = false) => {
+      appendModeRef.current = append;
+      setReloadToken((token) => token + 1);
+    },
+    [setReloadToken]
+  );
 
   useEffect(() => {
     if (!open) {
@@ -84,8 +116,9 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
     }
     setActiveTab('out');
     setLogState(createLogState());
-    setReloadToken((token) => token + 1);
-  }, [open, hostId, processName]);
+    appendModeRef.current = false;
+    triggerReload(false);
+  }, [open, hostId, processName, triggerReload]);
 
   useEffect(() => {
     if (!open) {
@@ -93,11 +126,22 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
     }
 
     let cancelled = false;
+    const shouldAppend = appendModeRef.current && reloadToken !== 0;
+    appendModeRef.current = false;
 
-    setLogState((prev) => ({
-      ...prev,
-      [activeTab]: { ...prev[activeTab], loading: true, error: null }
-    }));
+    setLogState((prev) => {
+      const previousTab = prev[activeTab] ?? {
+        content: '',
+        offset: 0,
+        overflow: false,
+        loading: false,
+        error: null
+      };
+      return {
+        ...prev,
+        [activeTab]: { ...previousTab, loading: true, error: null }
+      };
+    });
 
     async function loadLogs() {
       try {
@@ -106,23 +150,45 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
           process: processName,
           type: activeTab
         });
+        if (shouldAppend) {
+          const currentTabState = logStateRef.current[activeTab];
+          const startOffset = Number(currentTabState?.offset ?? 0);
+          if (Number.isFinite(startOffset) && startOffset > 0) {
+            query.set('offset', String(startOffset));
+          } else {
+            query.set('offset', '0');
+          }
+        }
         const data = await requestJson(`/api/v1/supervisors/logs?${query.toString()}`);
         if (cancelled) {
           return;
         }
 
         const [content, offset, overflow] = Array.isArray(data) ? data : ['', 0, false];
-        setLogState((prev) => ({
-          ...prev,
-          [activeTab]: {
-            ...prev[activeTab],
+        setLogState((prev) => {
+          const previousTab = prev[activeTab] ?? {
+            content: '',
+            offset: 0,
+            overflow: false,
             loading: false,
-            content: typeof content === 'string' ? content : '',
-            offset: Number.isFinite(Number(offset)) ? Number(offset) : 0,
-            overflow: Boolean(overflow),
             error: null
-          }
-        }));
+          };
+          const nextOffset = Number.isFinite(Number(offset)) ? Number(offset) : 0;
+          const newContent = typeof content === 'string' ? content : '';
+          const canAppend = shouldAppend && nextOffset > previousTab.offset;
+          const combinedContent = canAppend ? `${previousTab.content}${newContent}` : newContent;
+          return {
+            ...prev,
+            [activeTab]: {
+              ...previousTab,
+              loading: false,
+              content: combinedContent,
+              offset: nextOffset,
+              overflow: Boolean(overflow),
+              error: null
+            }
+          };
+        });
       } catch (err) {
         if (cancelled) {
           return;
@@ -184,7 +250,7 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
   ];
 
   const handleRefresh = () => {
-    setReloadToken((token) => token + 1);
+    triggerReload(false);
   };
 
   const handleClear = async () => {
@@ -194,7 +260,7 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
         method: 'POST',
         body: JSON.stringify({ host: hostId, process: processName })
       });
-      setReloadToken((token) => token + 1);
+      triggerReload(false);
     } catch (err) {
       setLogState((prev) => ({
         ...prev,
@@ -206,6 +272,37 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
     } finally {
       setClearing(false);
     }
+  };
+
+  useEffect(() => {
+    if (!open || !autoRefresh || typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      triggerReload(true);
+    }, 5000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [open, autoRefresh, triggerReload, activeTab, hostId, processName]);
+
+  const handleToggleAutoRefresh = () => {
+    setAutoRefresh((previous) => {
+      const nextValue = !previous;
+      if (storageKey && typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem(storageKey, String(nextValue));
+        } catch (_err) {
+          // Ignore storage errors.
+        }
+      }
+      if (nextValue) {
+        triggerReload(true);
+      }
+      return nextValue;
+    });
   };
 
   const logLabel = activeTab === 'out' ? 'stdout' : 'stderr';
@@ -269,6 +366,14 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
               : `Next offset: ${tabState.offset}`}
           </div>
           <div className={dashboardStyles.logFooterActions}>
+            <button
+              type="button"
+              className={`${ui.button} ${autoRefresh ? ui.buttonPrimary : ui.buttonGhost}`}
+              onClick={handleToggleAutoRefresh}
+              aria-pressed={autoRefresh}
+            >
+              {autoRefresh ? 'Auto Refresh: On' : 'Auto Refresh: Off'}
+            </button>
             <button
               type="button"
               className={`${ui.button} ${ui.buttonSecondary}`}
