@@ -45,7 +45,7 @@
 }
 
 .statusToneDanger {
-  color: #aa2700;
+  color: var(--nv-color-status-danger-text);
 }
 
 .statusToneSuccess {
@@ -53,7 +53,7 @@
 }
 
 .statusToneInfo {
-  color: #1641c4;
+  color: var(--nv-color-secondary);
 }
 
 .statusToneWarning {
