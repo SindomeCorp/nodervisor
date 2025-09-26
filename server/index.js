@@ -7,6 +7,7 @@ import supervisordapi from 'supervisord';
 import config from '../config.js';
 import { createApp } from './app.js';
 import { createServerContext } from './context.js';
+import { markRuntimeStart } from './runtimeMetrics.js';
 
 const db = Knex(config.db);
 const knexsessions = Knex(config.sessionstore);
@@ -46,6 +47,7 @@ export async function start() {
     serverInstance = await new Promise((resolve, reject) => {
       const server = app.listen(app.get('port'), app.get('host'));
       server.once('listening', () => {
+        markRuntimeStart();
         console.log(`Nodervisor launched on ${app.get('host')}:${app.get('port')}`);
         resolve(server);
       });

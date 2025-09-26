@@ -152,7 +152,8 @@ const envSchema = z
     DASHBOARD_MANIFESTS: z.string().optional(),
     HOST_REFRESH_INTERVAL_MS: integerLike(),
     TRUST_PROXY: trustProxyLike(),
-    AUTH_ALLOW_SELF_REGISTRATION: booleanLike
+    AUTH_ALLOW_SELF_REGISTRATION: booleanLike,
+    HEALTH_ENDPOINT_ENABLED: booleanLike
   })
   .passthrough();
 
@@ -174,6 +175,7 @@ const sessionCookieName = parsedEnv.SESSION_COOKIE_NAME ?? 'nv.sid';
 
 const trustProxy = parsedEnv.TRUST_PROXY;
 const authAllowSelfRegistration = parsedEnv.AUTH_ALLOW_SELF_REGISTRATION ?? false;
+const healthCheckEnabled = parsedEnv.HEALTH_ENDPOINT_ENABLED ?? false;
 
 const defaultDbFilename = path.join(projectRoot, 'nodervisor.sqlite');
 const dbClient = parsedEnv.DB_CLIENT ?? 'sqlite3';
@@ -227,6 +229,10 @@ const dashboardConfig = createDashboardConfig({
   publicPath: parsedEnv.DASHBOARD_PUBLIC_PATH,
   entry: parsedEnv.DASHBOARD_ENTRY,
   manifestList: parsedEnv.DASHBOARD_MANIFESTS
+});
+
+const healthCheckConfig = Object.freeze({
+  enabled: healthCheckEnabled
 });
 
 class HostCache {
@@ -360,6 +366,7 @@ const config = {
   sessionSecret,
   supervisord,
   dashboard: dashboardConfig,
+  healthCheck: healthCheckConfig,
   auth: {
     allowSelfRegistration: authAllowSelfRegistration
   },

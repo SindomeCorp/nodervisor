@@ -162,6 +162,12 @@ export let DashboardConfig;
 export let AuthConfig;
 
 /**
+ * @typedef {Object} HealthCheckConfig
+ * @property {boolean} enabled
+ */
+export let HealthCheckConfig;
+
+/**
  * @typedef {Object} SupervisordDefaults
  * @property {'http' | 'https'} protocol
  * @property {string} host
@@ -205,6 +211,7 @@ export let HostCache;
  * @property {string} sessionSecret
  * @property {SessionConfig} session
  * @property {AuthConfig} auth
+ * @property {HealthCheckConfig} healthCheck
  * @property {DashboardConfig} dashboard
  * @property {SupervisordConfig} supervisord
  * @property {HostCache} hostCache

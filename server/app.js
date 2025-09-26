@@ -12,6 +12,7 @@ import csurf from 'csurf';
 import { fileURLToPath } from 'node:url';
 
 import { createRouter } from '../routes/index.js';
+import { collectRuntimeMetrics } from './runtimeMetrics.js';
 
 /** @typedef {import('./types.js').ServerContext} ServerContext */
 
@@ -42,6 +43,15 @@ export function createApp(context) {
   app.use(methodOverride('_method'));
   app.use(cookieParser());
   app.use(helmet());
+
+  if (config.healthCheck?.enabled) {
+    app.get('/health', (req, res) => {
+      const metrics = collectRuntimeMetrics();
+      res.set('Cache-Control', 'no-store');
+      res.json({ status: 'ok', data: metrics });
+    });
+  }
+
   app.use(
     session({
       name: config.session.name,
