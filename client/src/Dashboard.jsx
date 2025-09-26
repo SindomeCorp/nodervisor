@@ -346,6 +346,16 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
   };
 
   const handleClear = async () => {
+    if (typeof window !== 'undefined') {
+      const confirmed = window.confirm(
+        'This will clear the server-side logs. Are you sure you want to continue?'
+      );
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
     setClearing(true);
     try {
       await requestJson('/api/v1/supervisors/logs/clear', {
