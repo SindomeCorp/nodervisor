@@ -198,9 +198,14 @@ const passwordSchema = z
     }
   });
 
+const loginPasswordSchema = z.preprocess(
+  (value) => (value === undefined ? value : String(value)),
+  z.string({ required_error: 'Password is required.' }).trim().min(1, 'Password is required.')
+);
+
 const loginRequestSchema = z.object({
   email: emailSchema.transform((value) => value.toLowerCase()),
-  password: passwordSchema
+  password: loginPasswordSchema
 });
 
 const registrationSchema = z.object({
