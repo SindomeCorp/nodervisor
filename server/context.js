@@ -1,15 +1,12 @@
-import { createRequire } from 'module';
 import { createGroupsRepository } from '../data/groups.js';
 import { createHostsRepository } from '../data/hosts.js';
 import { createUsersRepository } from '../data/users.js';
+import packageJson from '../package.json' assert { type: 'json' };
 
 /** @typedef {import('./types.js').ServerContext} ServerContext */
 /** @typedef {import('./types.js').ServerConfig} ServerConfig */
 /** @typedef {import('./types.js').Knex} Knex */
 /** @typedef {import('./types.js').SessionStore} SessionStore */
-
-const require = createRequire(import.meta.url);
-const packageJson = require('../package.json');
 
 /**
  * Creates an immutable context object used by the server and route layers.
