@@ -289,9 +289,7 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
       if (!node) {
         return;
       }
-      if (!isScrolledToBottom(node)) {
-        node.scrollTop = node.scrollHeight;
-      }
+      node.scrollTop = node.scrollHeight;
     });
   }, [logState, activeTab, open]);
 
