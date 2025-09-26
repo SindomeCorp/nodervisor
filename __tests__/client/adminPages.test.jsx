@@ -35,6 +35,23 @@ describe('Admin pages', () => {
     expect(screen.getByRole('link', { name: /add host/i })).toHaveAttribute('href', '/hosts/new');
   });
 
+  it('renders unsafe host URLs as plain text', async () => {
+    requestJson.mockResolvedValueOnce([
+      { id: 2, name: 'Unsanitized', url: 'javascript:alert(1)', groupName: null }
+    ]);
+
+    render(
+      <MemoryRouter>
+        <HostsListPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(requestJson).toHaveBeenCalledWith('/api/v1/hosts'));
+
+    const urlCell = await screen.findByText('javascript:alert(1)');
+    expect(urlCell.closest('a')).toBeNull();
+  });
+
   it('submits a new host to the API', async () => {
     requestJson
       .mockResolvedValueOnce([]) // groups

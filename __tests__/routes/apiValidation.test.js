@@ -67,6 +67,19 @@ describe('API validation middleware', () => {
       expect(Array.isArray(response.body.error.details)).toBe(true);
       expect(hostRepository.createHost).not.toHaveBeenCalled();
     });
+
+    it('rejects URLs with unsafe protocols', async () => {
+      const response = await request(app)
+        .post('/hosts')
+        .send({ name: 'Malicious', url: 'javascript:alert(1)' });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({ message: 'URL must be a valid http(s) URL.' })
+      });
+      expect(hostRepository.createHost).not.toHaveBeenCalled();
+    });
   });
 
   describe('groups', () => {
