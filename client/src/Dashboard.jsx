@@ -278,7 +278,7 @@ function useDashboardData(pollInterval) {
           const payload = JSON.parse(event.data);
           applyRawHosts(payload);
           setError(null);
-        } catch (err) {
+        } catch (_err) {
           setError('Received malformed supervisor snapshot.');
         }
       });
@@ -288,7 +288,7 @@ function useDashboardData(pollInterval) {
           const payload = JSON.parse(event.data);
           applyUpdatePayload(payload);
           setError(null);
-        } catch (err) {
+        } catch (_err) {
           setError('Received malformed supervisor update.');
         }
       });
