@@ -86,7 +86,7 @@ export async function start() {
     unregisterSignalHandlers();
     if (typeof stopHostRefresh === 'function') {
       try {
-        stopHostRefresh();
+        await stopHostRefresh();
       } catch (stopErr) {
         console.error('Failed to stop host refresh timer', stopErr);
       }
@@ -111,7 +111,7 @@ export async function shutdown({ signal } = {}) {
 
     if (typeof stopHostRefresh === 'function') {
       try {
-        stopHostRefresh();
+        await stopHostRefresh();
       } catch (err) {
         console.error('Failed to stop host refresh timer', err);
       }

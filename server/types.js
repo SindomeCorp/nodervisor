@@ -191,7 +191,7 @@ export let SupervisordConfig;
  * @typedef {Object} HostCache
  * @property {(db: Knex) => Promise<HostRegistry>} warm
  * @property {(db: Knex) => Promise<HostRegistry>} refresh
- * @property {(db: Knex, options?: { intervalMs?: number; logger?: Console }) => () => void} scheduleRefresh
+ * @property {(db: Knex, options?: { intervalMs?: number; logger?: Console }) => () => Promise<void>} scheduleRefresh
  * @property {(id: string | number) => HostRecord | null} get
  * @property {() => HostRecord[]} getAll
  * @property {(id: string | number) => HostOverride | null} getOverride
@@ -217,7 +217,7 @@ export let HostCache;
  * @property {HostCache} hostCache
  * @property {(db: Knex) => Promise<HostRegistry>} warmHosts
  * @property {(db: Knex) => Promise<HostRegistry>} refreshHosts
- * @property {(db: Knex, options?: { intervalMs?: number; logger?: Console }) => () => void} scheduleHostRefresh
+ * @property {(db: Knex, options?: { intervalMs?: number; logger?: Console }) => () => Promise<void>} scheduleHostRefresh
  * @property {(id: string | number) => HostOverride | null} getHostOverride
  */
 export let ServerConfig;
