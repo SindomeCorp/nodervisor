@@ -8,6 +8,7 @@ import { createGroupsApi } from '../../routes/api/groups.js';
 import { createAuthApi } from '../../routes/api/auth.js';
 import { createUsersApi } from '../../routes/api/users.js';
 import { ROLE_ADMIN, ROLE_NONE, ROLE_VIEWER } from '../../shared/roles.js';
+import { EmailAlreadyExistsError } from '../../data/users.js';
 
 const STRONG_PASSWORD = 'ValidPass123!';
 
@@ -308,6 +309,26 @@ describe('API validation middleware', () => {
         role: ROLE_NONE,
         passwordHash: 'hashed-password'
       });
+      hashSpy.mockRestore();
+    });
+
+    it('returns a conflict error when registration encounters a duplicate email', async () => {
+      const hashSpy = jest.spyOn(bcrypt, 'hash').mockResolvedValue('hashed-password');
+      userRepository.findByEmail.mockResolvedValue(null);
+      userRepository.createUser.mockRejectedValue(new EmailAlreadyExistsError());
+
+      const response = await request(app).post('/auth/register').send({
+        name: 'Existing User',
+        email: 'duplicate@example.com',
+        password: STRONG_PASSWORD
+      });
+
+      expect(response.status).toBe(409);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: { message: 'An account with that email already exists.' }
+      });
+      expect(userRepository.createUser).toHaveBeenCalled();
       hashSpy.mockRestore();
     });
   });
