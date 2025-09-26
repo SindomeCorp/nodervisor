@@ -1,7 +1,7 @@
 import knex from 'knex';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from '@jest/globals';
 
-import { createUsersRepository } from '../../data/users.js';
+import { createUsersRepository, EmailAlreadyExistsError } from '../../data/users.js';
 import { ROLE_ADMIN, ROLE_MANAGER, ROLE_NONE, ROLE_VIEWER } from '../../shared/roles.js';
 
 let db;
@@ -17,7 +17,7 @@ beforeAll(async () => {
   await db.schema.createTable('users', (table) => {
     table.increments('id').primary();
     table.string('Name');
-    table.string('Email');
+    table.string('Email').notNullable().unique();
     table.string('Password');
     table.string('Role');
   });
@@ -112,6 +112,48 @@ describe('users repository', () => {
 
     const stored = await db('users').where('id', user.id).first();
     expect(stored.Password).toBe('after');
+  });
+
+  it('rejects duplicate emails during creation', async () => {
+    await usersRepository.createUser({
+      name: 'Existing User',
+      email: 'dupe@example.com',
+      passwordHash: 'secret',
+      role: ROLE_VIEWER
+    });
+
+    await expect(
+      usersRepository.createUser({
+        name: 'Another User',
+        email: 'dupe@example.com',
+        passwordHash: 'secret',
+        role: ROLE_MANAGER
+      })
+    ).rejects.toBeInstanceOf(EmailAlreadyExistsError);
+  });
+
+  it('rejects duplicate emails during update', async () => {
+    const first = await usersRepository.createUser({
+      name: 'First User',
+      email: 'first@example.com',
+      passwordHash: 'secret',
+      role: ROLE_VIEWER
+    });
+
+    const second = await usersRepository.createUser({
+      name: 'Second User',
+      email: 'second@example.com',
+      passwordHash: 'secret',
+      role: ROLE_MANAGER
+    });
+
+    await expect(
+      usersRepository.updateUser(second.id, {
+        name: second.name,
+        email: first.email,
+        role: second.role
+      })
+    ).rejects.toBeInstanceOf(EmailAlreadyExistsError);
   });
 
   it('deletes users', async () => {
