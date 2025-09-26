@@ -13,9 +13,9 @@ import {
 } from './supervisorData.jsx';
 import dashboardStyles from './Dashboard.module.css';
 import ui from './styles/ui.module.css';
-import { isSafeUrl } from '../../shared/url.js';
 import { ROLE_ADMIN, ROLE_MANAGER, userHasRole } from '../../shared/roles.js';
 import { useSession } from './sessionContext.jsx';
+import { isSafeUrl } from '../../shared/url.js';
 
 const STATUS_TONE_CLASS = {
   danger: dashboardStyles.statusToneDanger,
@@ -521,7 +521,7 @@ function ProcessRow({
   hostId,
   hostName,
   process,
-  canControlProcesses,
+  canControlProcesses = false,
   onProcessAction,
   onViewLogs
 }) {
