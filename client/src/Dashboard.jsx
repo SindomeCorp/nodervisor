@@ -14,6 +14,8 @@ import {
 import dashboardStyles from './Dashboard.module.css';
 import ui from './styles/ui.module.css';
 import { isSafeUrl } from '../../shared/url.js';
+import { ROLE_ADMIN, ROLE_MANAGER, userHasRole } from '../../shared/roles.js';
+import { useSession } from './sessionContext.jsx';
 
 const STATUS_TONE_CLASS = {
   danger: dashboardStyles.statusToneDanger,
@@ -515,7 +517,14 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
   );
 }
 
-function ProcessRow({ hostId, hostName, process, onProcessAction, onViewLogs }) {
+function ProcessRow({
+  hostId,
+  hostName,
+  process,
+  canControlProcesses,
+  onProcessAction,
+  onViewLogs
+}) {
   const [pendingAction, setPendingAction] = useState(null);
   const [actionError, setActionError] = useState(null);
 
@@ -538,7 +547,7 @@ function ProcessRow({ hostId, hostName, process, onProcessAction, onViewLogs }) 
   const spawnError = typeof process?.spawnerr === 'string' ? process.spawnerr : null;
 
   const handleAction = async (action) => {
-    if (!identifier || !action) {
+    if (!identifier || !action || !canControlProcesses) {
       return;
     }
 
@@ -555,9 +564,11 @@ function ProcessRow({ hostId, hostName, process, onProcessAction, onViewLogs }) 
 
   const canStart = ['STOPPED', 'EXITED', 'BACKOFF', 'FATAL'].includes(status);
   const canStop = ['RUNNING', 'STARTING'].includes(status);
-  const disableStart = pendingAction !== null || !identifier || !canStart;
-  const disableStop = pendingAction !== null || !identifier || !canStop;
-  const disableRestart = pendingAction !== null || !identifier;
+  const disableStart =
+    !canControlProcesses || pendingAction !== null || !identifier || !canStart;
+  const disableStop =
+    !canControlProcesses || pendingAction !== null || !identifier || !canStop;
+  const disableRestart = !canControlProcesses || pendingAction !== null || !identifier;
   const disableLogs = !identifier || typeof onViewLogs !== 'function';
 
   const pidDisplay = Number.isFinite(pid) && pid > 0 ? pid : '—';
@@ -578,30 +589,34 @@ function ProcessRow({ hostId, hostName, process, onProcessAction, onViewLogs }) 
       <td className={dashboardStyles.startedCell}>{startedAt ?? '—'}</td>
       <td className={classNames(dashboardStyles.actionsCell, ui.tableCellNumeric)}>
         <div className={ui.buttonGroup} role="group">
-          <button
-            type="button"
-            className={`${ui.button} ${ui.buttonSuccess}`}
-            disabled={disableStart}
-            onClick={() => handleAction('start')}
-          >
-            {pendingAction === 'start' ? 'Starting…' : 'Start'}
-          </button>
-          <button
-            type="button"
-            className={`${ui.button} ${ui.buttonDanger}`}
-            disabled={disableStop}
-            onClick={() => handleAction('stop')}
-          >
-            {pendingAction === 'stop' ? 'Stopping…' : 'Stop'}
-          </button>
-          <button
-            type="button"
-            className={`${ui.button} ${ui.buttonSecondary}`}
-            disabled={disableRestart}
-            onClick={() => handleAction('restart')}
-          >
-            {pendingAction === 'restart' ? 'Restarting…' : 'Restart'}
-          </button>
+          {canControlProcesses && (
+            <>
+              <button
+                type="button"
+                className={`${ui.button} ${ui.buttonSuccess}`}
+                disabled={disableStart}
+                onClick={() => handleAction('start')}
+              >
+                {pendingAction === 'start' ? 'Starting…' : 'Start'}
+              </button>
+              <button
+                type="button"
+                className={`${ui.button} ${ui.buttonDanger}`}
+                disabled={disableStop}
+                onClick={() => handleAction('stop')}
+              >
+                {pendingAction === 'stop' ? 'Stopping…' : 'Stop'}
+              </button>
+              <button
+                type="button"
+                className={`${ui.button} ${ui.buttonSecondary}`}
+                disabled={disableRestart}
+                onClick={() => handleAction('restart')}
+              >
+                {pendingAction === 'restart' ? 'Restarting…' : 'Restart'}
+              </button>
+            </>
+          )}
           <button
             type="button"
             className={`${ui.button} ${ui.buttonGhost}`}
@@ -624,7 +639,7 @@ function ProcessRow({ hostId, hostName, process, onProcessAction, onViewLogs }) 
   );
 }
 
-function HostPanel({ entry, onProcessAction, onViewLogs }) {
+function HostPanel({ entry, canControlProcesses, onProcessAction, onViewLogs }) {
   const { hostId, host, processes, error } = entry;
   const hostName = host?.Name ?? hostId ?? 'Unknown host';
   const groupName = host?.GroupName ?? null;
@@ -696,6 +711,7 @@ function HostPanel({ entry, onProcessAction, onViewLogs }) {
                       hostId={hostId}
                       hostName={hostName}
                       process={process}
+                      canControlProcesses={canControlProcesses}
                       onProcessAction={onProcessAction}
                       onViewLogs={onViewLogs}
                     />
@@ -711,8 +727,13 @@ function HostPanel({ entry, onProcessAction, onViewLogs }) {
 }
 
 export default function Dashboard() {
+  const { user } = useSession();
   const { hostEntries, error, loading } = useSupervisorData(10000);
   const [logViewer, setLogViewer] = useState(null);
+  const canControlProcesses = useMemo(
+    () => userHasRole(user, [ROLE_ADMIN, ROLE_MANAGER]),
+    [user]
+  );
 
   const handleProcessAction = async ({ hostId, processName, action }) => {
     if (!hostId || !processName || !action) {
@@ -756,6 +777,7 @@ export default function Dashboard() {
             <HostPanel
               key={entry.hostId}
               entry={entry}
+              canControlProcesses={canControlProcesses}
               onProcessAction={handleProcessAction}
               onViewLogs={handleViewLogs}
             />
