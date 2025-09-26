@@ -29,3 +29,27 @@ describe('config trust proxy parsing', () => {
     expect(config.trustProxy).toBe(true);
   });
 });
+
+describe('config database client normalization', () => {
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...ORIGINAL_ENV };
+    delete process.env.DB_CLIENT;
+  });
+
+  afterAll(() => {
+    process.env = ORIGINAL_ENV;
+  });
+
+  it.each([
+    ['MYSQL2', 'mysql2'],
+    ['PostgresQL', 'pg'],
+    ['SQLite3', 'sqlite3']
+  ])('normalizes %s to %s', async (input, expected) => {
+    process.env.DB_CLIENT = input;
+
+    const { default: config } = await import('../config.js');
+
+    expect(config.db.client).toBe(expected);
+  });
+});

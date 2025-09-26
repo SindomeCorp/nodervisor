@@ -467,7 +467,7 @@ function normalizeClientName(client) {
     return 'pg';
   }
 
-  return client;
+  return normalized;
 }
 
 function createDashboardConfig({ publicDir, publicPath, entry, manifestList }) {
