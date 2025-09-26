@@ -134,7 +134,7 @@ export function createUsersApi(context) {
   return router;
 }
 
-const roleSchema = requiredTrimmedString('Role').refine((value) => ALL_ROLES.includes(value), 'Invalid role.');
+const roleSchema = requiredTrimmedString('Role', { max: 32 }).refine((value) => ALL_ROLES.includes(value), 'Invalid role.');
 
 const emailSchema = normalizedEmailSchema('Email');
 
@@ -151,14 +151,14 @@ const passwordSchema = z
   });
 
 const userCreateSchema = z.object({
-  name: requiredTrimmedString('Name'),
+  name: requiredTrimmedString('Name', { max: 32 }),
   email: emailSchema.transform((value) => value.toLowerCase()),
   role: roleSchema,
   password: passwordSchema
 });
 
 const userUpdateSchema = z.object({
-  name: requiredTrimmedString('Name'),
+  name: requiredTrimmedString('Name', { max: 32 }),
   email: emailSchema.transform((value) => value.toLowerCase()),
   role: roleSchema,
   password: passwordSchema.optional()
