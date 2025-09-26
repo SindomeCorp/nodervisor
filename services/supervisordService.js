@@ -269,10 +269,24 @@ export class SupervisordService {
 
   #createClient(host) {
     const hostId = this.#resolveHostId(host);
-    if (this.clientCache.has(hostId)) {
-      return this.clientCache.get(hostId);
+    const signature = this.#computeConnectionSignature(hostId, host);
+    const cachedEntry = this.clientCache.get(hostId);
+
+    if (cachedEntry?.signature === signature) {
+      return cachedEntry.wrapper;
     }
 
+    if (cachedEntry) {
+      this.clientCache.delete(hostId);
+      this.#disposeClient(hostId, cachedEntry.wrapper);
+    }
+
+    const wrapper = this.#buildClientWrapper(hostId, host);
+    this.clientCache.set(hostId, { wrapper, signature });
+    return wrapper;
+  }
+
+  #buildClientWrapper(hostId, host) {
     const rawClient = this.config.supervisord?.createClient
       ? this.config.supervisord.createClient(this.supervisordapi, host)
       : this.supervisordapi.connect(host.Url);
@@ -281,7 +295,7 @@ export class SupervisordService {
       ? this.logger.child({ hostId, hostUrl: host?.Url })
       : this.logger;
 
-    const wrapper = new SupervisordClientWrapper({
+    return new SupervisordClientWrapper({
       hostId,
       hostUrl: host?.Url,
       client: rawClient,
@@ -290,9 +304,79 @@ export class SupervisordService {
       metrics: this.metrics,
       wrapRpcError: (error) => this.#wrapRpcError(error)
     });
+  }
 
-    this.clientCache.set(hostId, wrapper);
-    return wrapper;
+  #computeConnectionSignature(hostId, host) {
+    const { supervisord } = this.config ?? {};
+    if (supervisord && typeof supervisord.buildTarget === 'function') {
+      try {
+        const target = supervisord.buildTarget(host);
+        if (target && typeof target === 'object') {
+          return stableStringify({ target });
+        }
+
+        return stableStringify({ target: target ?? null });
+      } catch (error) {
+        this.logger?.warn?.(
+          { hostId, error },
+          'Failed to compute supervisord connection target; falling back to host fields'
+        );
+      }
+    }
+
+    const connectionDetails = {};
+
+    if (host?.Url !== undefined) {
+      connectionDetails.url = host.Url;
+    }
+
+    const override = host?.override?.connection;
+    if (override && typeof override === 'object') {
+      connectionDetails.override = Object.fromEntries(
+        Object.entries(override).filter(([, value]) => value !== undefined)
+      );
+    }
+
+    if (host?.socketPath !== undefined) {
+      connectionDetails.socketPath = host.socketPath;
+    }
+
+    if (Object.keys(connectionDetails).length === 0) {
+      return stableStringify({ hostId });
+    }
+
+    return stableStringify(connectionDetails);
+  }
+
+  #disposeClient(hostId, wrapper) {
+    if (!wrapper) {
+      return;
+    }
+
+    const candidates = [wrapper, wrapper.client].filter((candidate, index, self) => {
+      if (!candidate || typeof candidate !== 'object') {
+        return false;
+      }
+      return self.indexOf(candidate) === index;
+    });
+
+    const methods = ['dispose', 'close', 'destroy', 'end'];
+
+    for (const candidate of candidates) {
+      for (const method of methods) {
+        if (typeof candidate[method] === 'function') {
+          try {
+            candidate[method]();
+          } catch (error) {
+            this.logger?.warn?.(
+              { hostId, method, error },
+              'Failed to dispose supervisord client'
+            );
+          }
+          break;
+        }
+      }
+    }
   }
 
   #resolveLogMethod(type) {

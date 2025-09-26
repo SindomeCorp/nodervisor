@@ -25,15 +25,23 @@ const HOST_ID = 'host-1';
 
 const baseHost = { idHost: HOST_ID, Url: 'http://localhost:9001/RPC2' };
 
-const buildService = ({ clientFactory, metrics = createMetricsMock(), rpcOptions = {} }) => {
+const buildService = ({
+  clientFactory,
+  metrics = createMetricsMock(),
+  rpcOptions = {},
+  configOverrides = {}
+}) => {
   const supervisordapi = {
-    connect: jest.fn(() => clientFactory())
+    connect: jest.fn((...args) => clientFactory(...args))
+  };
+
+  const serviceConfig = {
+    hosts: { [HOST_ID]: baseHost },
+    ...configOverrides
   };
 
   const service = new SupervisordService({
-    config: {
-      hosts: { [HOST_ID]: baseHost }
-    },
+    config: serviceConfig,
     supervisordapi,
     logger: createLoggerMock(),
     metrics,
@@ -188,5 +196,61 @@ describe('SupervisordService integration', () => {
     expect(entry.error.details.data).toBeDefined();
     expect(entry.error.details.data.headers.Authorization).toBe('[REDACTED]');
     expect(JSON.stringify(entry.error)).not.toContain('secret-token');
+  });
+
+  it('reconnects when host connection details change', async () => {
+    const callTargets = [];
+    const clients = new Map();
+
+    let currentHost = { ...baseHost };
+    const hostCache = {
+      get: jest.fn(() => currentHost),
+      getAll: jest.fn(() => [currentHost])
+    };
+
+    const clientFactory = (target) => {
+      const client = {
+        stopProcess: jest.fn((_name, callback) => {
+          callTargets.push(target);
+          callback(null, 'ok');
+        }),
+        end: jest.fn()
+      };
+      clients.set(target, client);
+      return client;
+    };
+
+    const { service, supervisordapi } = buildService({
+      clientFactory,
+      configOverrides: { hostCache, hosts: {} }
+    });
+
+    await service.controlProcess({
+      hostId: HOST_ID,
+      processName: 'web',
+      action: 'stop'
+    });
+
+    expect(callTargets).toEqual(['http://localhost:9001/RPC2']);
+    const firstClient = clients.get('http://localhost:9001/RPC2');
+    expect(firstClient.stopProcess).toHaveBeenCalledTimes(1);
+
+    currentHost = { ...currentHost, Url: 'http://127.0.0.1:9002/RPC2' };
+
+    await service.controlProcess({
+      hostId: HOST_ID,
+      processName: 'web',
+      action: 'stop'
+    });
+
+    expect(callTargets).toEqual([
+      'http://localhost:9001/RPC2',
+      'http://127.0.0.1:9002/RPC2'
+    ]);
+    expect(supervisordapi.connect).toHaveBeenCalledTimes(2);
+    expect(firstClient.end).toHaveBeenCalledTimes(1);
+
+    const secondClient = clients.get('http://127.0.0.1:9002/RPC2');
+    expect(secondClient.stopProcess).toHaveBeenCalledTimes(1);
   });
 });
