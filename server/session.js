@@ -27,16 +27,6 @@ export function isSessionAuthenticated(session) {
 }
 
 /**
- * Determines whether the session user has the Administrator role.
- *
- * @param {RequestSession | undefined | null} session
- * @returns {boolean}
- */
-export function isSessionAdmin(session) {
-  return sessionHasRole(session, [ROLE_ADMIN]);
-}
-
-/**
  * Determines whether the session user has one of the specified roles.
  *
  * @param {RequestSession | undefined | null} session
@@ -96,19 +86,6 @@ export function ensureRoleRequest(req, res, roles, redirectTo = '/request-access
   }
 
   return true;
-}
-
-/**
- * Ensures the current request belongs to an authenticated administrator. The
- * return value mirrors {@link ensureAuthenticatedRequest}.
- *
- * @param {Request & { session?: RequestSession }} req
- * @param {Response} res
- * @param {string} [redirectTo='/dashboard']
- * @returns {boolean}
- */
-export function ensureAdminRequest(req, res, redirectTo = '/request-access') {
-  return ensureRoleRequest(req, res, [ROLE_ADMIN], redirectTo);
 }
 
 /**
