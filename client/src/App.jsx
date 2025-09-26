@@ -9,6 +9,7 @@ import {
 import { useState } from 'react';
 
 import Dashboard from './Dashboard.jsx';
+import OverviewPage from './pages/OverviewPage.jsx';
 import HostsListPage from './pages/HostsListPage.jsx';
 import HostFormPage from './pages/HostFormPage.jsx';
 import GroupsListPage from './pages/GroupsListPage.jsx';
@@ -64,11 +65,18 @@ function Layout() {
           <nav aria-label="Primary navigation">
             <ul className={layoutStyles.navList}>
               {canViewDashboard && (
-                <li>
-                  <Link to="/dashboard" className={layoutStyles.navLink}>
-                    Dashboard
-                  </Link>
-                </li>
+                <>
+                  <li>
+                    <Link to="/dashboard" className={layoutStyles.navLink}>
+                      Dashboard
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/overview" className={layoutStyles.navLink}>
+                      Overview
+                    </Link>
+                  </li>
+                </>
               )}
               {canManageInfrastructure && (
                 <>
@@ -132,6 +140,14 @@ function AppRoutes() {
             element={
               <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER]}>
                 <Dashboard />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="overview"
+            element={
+              <RequireRole allowedRoles={[ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER]}>
+                <OverviewPage />
               </RequireRole>
             }
           />

@@ -1,0 +1,87 @@
+.section {
+  padding-bottom: 2rem;
+}
+
+.grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.card {
+  height: 100%;
+  text-align: center;
+  border-radius: var(--nv-radius-md);
+  background: var(--nv-color-surface);
+  box-shadow: var(--nv-shadow-md);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.cardBody {
+  padding: 2rem 1.5rem;
+}
+
+.cardTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 1.25rem;
+  color: var(--nv-color-secondary);
+}
+
+.statusLabel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  font-size: 2.5rem;
+  font-weight: 600;
+}
+
+.statusIcon {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.statusToneDanger {
+  color: #aa2700;
+}
+
+.statusToneSuccess {
+  color: var(--nv-color-success);
+}
+
+.statusToneInfo {
+  color: #1641c4;
+}
+
+.statusToneWarning {
+  color: var(--nv-color-warning);
+}
+
+.sectionTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--nv-color-secondary);
+}
+
+.error {
+  margin: 1rem 0;
+}
+
+@media (max-width: 575px) {
+  .cardBody {
+    padding: 1.5rem 1.25rem;
+  }
+
+  .statusLabel {
+    font-size: 2rem;
+  }
+
+  .statusIcon {
+    width: 2rem;
+    height: 2rem;
+  }
+}
