@@ -1,4 +1,4 @@
-import { useSession } from '../App.jsx';
+import { useSession } from '../sessionContext.jsx';
 import ui from '../styles/ui.module.css';
 
 export default function RequestAccessPage() {

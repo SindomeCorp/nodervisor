@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-import { useSession } from '../App.jsx';
+import { useSession } from '../sessionContext.jsx';
 import AuthPageLayout from './AuthPageLayout.jsx';
 import ui from '../styles/ui.module.css';
 

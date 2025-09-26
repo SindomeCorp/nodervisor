@@ -4,18 +4,9 @@ import {
   Navigate,
   Outlet,
   Route,
-  Routes,
-  useLocation
+  Routes
 } from 'react-router-dom';
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState
-} from 'react';
+import { useState } from 'react';
 
 import Dashboard from './Dashboard.jsx';
 import HostsListPage from './pages/HostsListPage.jsx';
@@ -27,7 +18,8 @@ import UserFormPage from './pages/UserFormPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import RequestAccessPage from './pages/RequestAccessPage.jsx';
-import { createAuthClient } from './apiClient.js';
+import { SessionContext, SessionProvider, useSession } from './sessionContext.jsx';
+import { RequireAuth, RequireGuest, RequireRole } from './routeGuards.jsx';
 import layoutStyles from './AppLayout.module.css';
 import ui from './styles/ui.module.css';
 import {
@@ -38,135 +30,6 @@ import {
   resolveUserRole,
   userHasRole
 } from '../../shared/roles.js';
-
-export const SessionContext = createContext({
-  user: null,
-  status: 'loading',
-  allowSelfRegistration: false,
-  login: async () => {},
-  logout: async () => {},
-  register: async () => {},
-  refreshSession: async () => {}
-});
-
-export function useSession() {
-  return useContext(SessionContext);
-}
-
-function SessionProvider({ initialState, children }) {
-  const authClient = useMemo(() => createAuthClient(initialState?.auth), [initialState]);
-  const [user, setUser] = useState(initialState?.user ?? null);
-  const [status, setStatus] = useState(initialState?.user ? 'authenticated' : 'loading');
-  const [allowSelfRegistration, setAllowSelfRegistration] = useState(
-    initialState?.auth?.allowSelfRegistration ?? false
-  );
-  const initialFetchCompleted = useRef(Boolean(initialState?.user));
-
-  const refreshSession = useCallback(async () => {
-    setStatus('loading');
-    try {
-      const data = await authClient.getSession();
-      if (data && Object.prototype.hasOwnProperty.call(data, 'allowSelfRegistration')) {
-        setAllowSelfRegistration(Boolean(data.allowSelfRegistration));
-      }
-      const sessionUser = data?.user ?? null;
-      setUser(sessionUser);
-      setStatus(sessionUser ? 'authenticated' : 'unauthenticated');
-      return sessionUser;
-    } catch (err) {
-      setUser(null);
-      setStatus('unauthenticated');
-      throw err;
-    }
-  }, [authClient]);
-
-  useEffect(() => {
-    if (initialFetchCompleted.current) {
-      return;
-    }
-    initialFetchCompleted.current = true;
-    refreshSession().catch(() => {
-      /* handled by refreshSession */
-    });
-  }, [refreshSession]);
-
-  const login = useCallback(
-    async ({ email, password }) => {
-      setStatus('loading');
-      try {
-        const result = await authClient.login({ email, password });
-        const sessionUser = result?.user ?? null;
-        setUser(sessionUser);
-        setStatus(sessionUser ? 'authenticated' : 'unauthenticated');
-        return sessionUser;
-      } catch (err) {
-        setUser(null);
-        setStatus('unauthenticated');
-        throw err;
-      }
-    },
-    [authClient]
-  );
-
-  const register = useCallback(
-    async ({ name, email, password }) => {
-      if (!allowSelfRegistration) {
-        throw new Error('Self-registration is disabled.');
-      }
-      setStatus('loading');
-      try {
-        const result = await authClient.register({ name, email, password });
-        const sessionUser = result?.user ?? null;
-        setUser(sessionUser);
-        setStatus(sessionUser ? 'authenticated' : 'unauthenticated');
-        return sessionUser;
-      } catch (err) {
-        setUser(null);
-        setStatus('unauthenticated');
-        throw err;
-      }
-    },
-    [authClient, allowSelfRegistration]
-  );
-
-  const logout = useCallback(async () => {
-    setStatus('loading');
-    try {
-      await authClient.logout();
-      setUser(null);
-      setStatus('unauthenticated');
-    } catch (err) {
-      setStatus(user ? 'authenticated' : 'unauthenticated');
-      throw err;
-    }
-  }, [authClient, user]);
-
-  const value = useMemo(
-    () => ({
-      user,
-      status,
-      allowSelfRegistration,
-      login,
-      logout,
-      register,
-      refreshSession
-    }),
-    [user, status, allowSelfRegistration, login, logout, register, refreshSession]
-  );
-
-  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
-}
-
-function LoadingView({ message = 'Loading…' }) {
-  return (
-    <div className={ui.loadingContainer}>
-      <div className={ui.loadingContent}>
-        <div className={`${ui.spinner} ${ui.textCenter}`} role="status" aria-hidden="true"></div>
-        <p className={ui.textMuted}>{message}</p>
-      </div>
-    </div>
-  );
-}
 
 function Layout() {
   const { user, logout } = useSession();
@@ -254,57 +117,6 @@ function Layout() {
       </main>
     </div>
   );
-}
-
-function RequireAuth() {
-  const location = useLocation();
-  const { status, user } = useSession();
-  const role = resolveUserRole(user);
-
-  if (status === 'loading') {
-    return <LoadingView message="Checking session…" />;
-  }
-
-  if (status !== 'authenticated') {
-    return <Navigate to="/auth/login" state={{ from: location }} replace />;
-  }
-
-  if (
-    role === ROLE_NONE &&
-    !location.pathname.startsWith('/request-access') &&
-    !location.pathname.startsWith('/auth')
-  ) {
-    return <Navigate to="/request-access" state={{ from: location }} replace />;
-  }
-
-  return <Outlet />;
-}
-
-function RequireRole({ allowedRoles, children }) {
-  const { user } = useSession();
-  const location = useLocation();
-  const role = resolveUserRole(user);
-
-  if (!userHasRole(user, allowedRoles)) {
-    const redirectTo = role === ROLE_NONE ? '/request-access' : '/dashboard';
-    return <Navigate to={redirectTo} state={{ from: location }} replace />;
-  }
-
-  return children;
-}
-
-function RequireGuest({ children }) {
-  const { status } = useSession();
-
-  if (status === 'loading') {
-    return <LoadingView message="Checking session…" />;
-  }
-
-  if (status === 'authenticated') {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return children;
 }
 
 function AppRoutes() {
@@ -436,3 +248,5 @@ export default function App({ initialState }) {
     </SessionProvider>
   );
 }
+
+export { SessionProvider, AppRoutes, SessionContext, useSession };
