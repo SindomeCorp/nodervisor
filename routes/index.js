@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
 import { SupervisordService } from '../services/supervisordService.js';
-import { ServiceError } from '../services/errors.js';
+import { ServiceError, sanitizeErrorDetails } from '../services/errors.js';
 import { assertSessionRole, ensureAuthenticatedRequest, ensureRoleRequest } from '../server/session.js';
 import { ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER } from '../shared/roles.js';
 import { renderAppPage } from '../server/renderAppPage.js';
@@ -30,8 +30,11 @@ export function createRouter(context) {
     const message = error?.message ?? 'Unexpected error';
     const payload = { status: 'error', error: { message } };
 
-    if (error instanceof ServiceError && error.details) {
-      payload.error.details = error.details;
+    if (error instanceof ServiceError) {
+      const details = sanitizeErrorDetails(error.details);
+      if (details !== undefined) {
+        payload.error.details = details;
+      }
     }
 
     return res.status(statusCode).json(payload);

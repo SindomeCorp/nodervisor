@@ -1,8 +1,7 @@
-import { inspect } from 'util';
 import { EventEmitter } from 'node:events';
 import pino from 'pino';
 
-import { ServiceError } from './errors.js';
+import { ServiceError, sanitizeErrorDetails } from './errors.js';
 import { SupervisordClientWrapper } from './supervisordClientWrapper.js';
 
 const DEFAULT_RPC_OPTIONS = {
@@ -335,7 +334,8 @@ export class SupervisordService {
     }
 
     const message = err?.faultString || err?.message || 'Supervisord RPC error';
-    const details = err ? inspect(err, { depth: 2 }) : undefined;
+    const metadata = this.#extractRpcErrorMetadata(err);
+    const details = sanitizeErrorDetails(metadata);
     return new ServiceError(message, 502, details);
   }
 
@@ -345,11 +345,36 @@ export class SupervisordService {
     }
 
     const payload = { message: error.message };
-    if (error.details) {
-      payload.details = error.details;
+    const sanitizedDetails = sanitizeErrorDetails(error.details);
+    if (sanitizedDetails !== undefined) {
+      payload.details = sanitizedDetails;
     }
 
     return payload;
+  }
+
+  #extractRpcErrorMetadata(err) {
+    if (!err || typeof err !== 'object') {
+      return undefined;
+    }
+
+    const metadata = {};
+    const allowedKeys = ['name', 'code', 'errno', 'faultCode', 'faultString'];
+    for (const key of allowedKeys) {
+      if (err[key] !== undefined) {
+        metadata[key] = err[key];
+      }
+    }
+
+    if (err.data !== undefined) {
+      metadata.data = err.data;
+    }
+
+    if (err.details !== undefined && metadata.details === undefined) {
+      metadata.details = err.details;
+    }
+
+    return metadata;
   }
 
   #cloneHostForResponse(host) {

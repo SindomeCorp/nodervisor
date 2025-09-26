@@ -143,4 +143,50 @@ describe('SupervisordService integration', () => {
     expect(metrics.onCircuitClose).not.toHaveBeenCalled();
     expect(metrics.onRpcFailure).toHaveBeenCalledTimes(3);
   });
+
+  it('redacts sensitive data when serializing RPC errors', async () => {
+    const rpcError = new Error('RPC failure');
+    rpcError.faultString = 'FAILED';
+    rpcError.faultCode = 401;
+    rpcError.data = {
+      headers: {
+        Authorization: 'Basic secret-token',
+        'X-Custom': 'value'
+      },
+      nested: {
+        Authorization: 'Another secret'
+      }
+    };
+    rpcError.request = {
+      headers: {
+        Authorization: 'Basic secret-token'
+      }
+    };
+    rpcError.response = {
+      headers: {
+        Authorization: 'Bearer token'
+      }
+    };
+
+    const clientFactory = () => ({
+      getAllProcessInfo: (callback) => {
+        callback(rpcError);
+      }
+    });
+
+    const { service } = buildService({ clientFactory });
+
+    const snapshot = await service.fetchAllProcessInfo();
+    const entry = snapshot[HOST_ID];
+    expect(entry).toBeDefined();
+    expect(entry.error).toBeDefined();
+    expect(entry.error.message).toBe('FAILED');
+    expect(entry.error.details).toBeDefined();
+    expect(entry.error.details).not.toHaveProperty('request');
+    expect(entry.error.details).not.toHaveProperty('response');
+    expect(entry.error.details.faultCode).toBe(401);
+    expect(entry.error.details.data).toBeDefined();
+    expect(entry.error.details.data.headers.Authorization).toBe('[REDACTED]');
+    expect(JSON.stringify(entry.error)).not.toContain('secret-token');
+  });
 });
