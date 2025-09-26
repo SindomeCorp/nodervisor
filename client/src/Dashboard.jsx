@@ -65,10 +65,26 @@ function StatusBadge({ status, children }) {
   );
 }
 
+const SCROLL_STICKY_THRESHOLD_PX = 24;
+
 function createLogState() {
   return {
-    out: { content: '', offset: 0, overflow: false, loading: false, error: null },
-    err: { content: '', offset: 0, overflow: false, loading: false, error: null }
+    out: {
+      content: '',
+      offset: 0,
+      overflow: false,
+      loading: false,
+      loadingMode: null,
+      error: null
+    },
+    err: {
+      content: '',
+      offset: 0,
+      overflow: false,
+      loading: false,
+      loadingMode: null,
+      error: null
+    }
   };
 }
 
@@ -80,6 +96,9 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
   const [autoRefresh, setAutoRefresh] = useState(false);
   const appendModeRef = useRef(false);
   const logStateRef = useRef(logState);
+  const logContentRef = useRef(null);
+  const shouldStickToBottomRef = useRef(false);
+  const pendingScrollRef = useRef(null);
   const storageKey = hostId ? `nodervisor:logAutoRefresh:${hostId}` : null;
 
   useEffect(() => {
@@ -129,17 +148,37 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
     const shouldAppend = appendModeRef.current && reloadToken !== 0;
     appendModeRef.current = false;
 
+    if (shouldAppend) {
+      const container = logContentRef.current;
+      if (container) {
+        const distanceFromBottom =
+          container.scrollHeight - container.scrollTop - container.clientHeight;
+        shouldStickToBottomRef.current = distanceFromBottom <= SCROLL_STICKY_THRESHOLD_PX;
+      } else {
+        shouldStickToBottomRef.current = true;
+      }
+    } else {
+      shouldStickToBottomRef.current = false;
+    }
+    pendingScrollRef.current = null;
+
     setLogState((prev) => {
       const previousTab = prev[activeTab] ?? {
         content: '',
         offset: 0,
         overflow: false,
         loading: false,
+        loadingMode: null,
         error: null
       };
       return {
         ...prev,
-        [activeTab]: { ...previousTab, loading: true, error: null }
+        [activeTab]: {
+          ...previousTab,
+          loading: true,
+          loadingMode: shouldAppend ? 'append' : 'replace',
+          error: null
+        }
       };
     });
 
@@ -165,23 +204,29 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
         }
 
         const [content, offset, overflow] = Array.isArray(data) ? data : ['', 0, false];
+        let shouldScrollAfterUpdate = false;
         setLogState((prev) => {
           const previousTab = prev[activeTab] ?? {
             content: '',
             offset: 0,
             overflow: false,
             loading: false,
+            loadingMode: null,
             error: null
           };
           const nextOffset = Number.isFinite(Number(offset)) ? Number(offset) : 0;
           const newContent = typeof content === 'string' ? content : '';
           const canAppend = shouldAppend && nextOffset > previousTab.offset;
           const combinedContent = canAppend ? `${previousTab.content}${newContent}` : newContent;
+          if (canAppend && shouldStickToBottomRef.current) {
+            shouldScrollAfterUpdate = true;
+          }
           return {
             ...prev,
             [activeTab]: {
               ...previousTab,
               loading: false,
+              loadingMode: null,
               content: combinedContent,
               offset: nextOffset,
               overflow: Boolean(overflow),
@@ -189,6 +234,9 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
             }
           };
         });
+        if (shouldScrollAfterUpdate) {
+          pendingScrollRef.current = activeTab;
+        }
       } catch (err) {
         if (cancelled) {
           return;
@@ -198,6 +246,7 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
           [activeTab]: {
             ...prev[activeTab],
             loading: false,
+            loadingMode: null,
             error: err.message ?? 'Failed to load logs.'
           }
         }));
@@ -210,6 +259,31 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
       cancelled = true;
     };
   }, [open, activeTab, hostId, processName, reloadToken]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    if (pendingScrollRef.current !== activeTab) {
+      return;
+    }
+
+    const container = logContentRef.current;
+    if (!container) {
+      pendingScrollRef.current = null;
+      return;
+    }
+
+    pendingScrollRef.current = null;
+    requestAnimationFrame(() => {
+      const node = logContentRef.current;
+      if (!node) {
+        return;
+      }
+      node.scrollTop = node.scrollHeight;
+    });
+  }, [logState, activeTab, open]);
 
   useEffect(() => {
     if (!open || typeof document === 'undefined') {
@@ -243,7 +317,15 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
     return null;
   }
 
-  const tabState = logState[activeTab] ?? logState.out;
+  const tabState =
+    logState[activeTab] ?? {
+      content: '',
+      offset: 0,
+      overflow: false,
+      loading: false,
+      loadingMode: null,
+      error: null
+    };
   const tabs = [
     { key: 'out', label: 'Stdout' },
     { key: 'err', label: 'Stderr' }
@@ -345,13 +427,13 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
             </button>
           ))}
         </div>
-        <div className={dashboardStyles.logContent} role="tabpanel">
+        <div className={dashboardStyles.logContent} role="tabpanel" ref={logContentRef}>
           {tabState.error && (
             <div className={dashboardStyles.logError} role="alert">
               {tabState.error}
             </div>
           )}
-          {tabState.loading ? (
+          {tabState.loading && tabState.loadingMode !== 'append' && !tabState.content ? (
             <p>Loading {logLabel} log…</p>
           ) : (
             <pre className={dashboardStyles.logPre}>
