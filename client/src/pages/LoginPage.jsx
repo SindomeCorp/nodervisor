@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../App.jsx';
 import AuthPageLayout from './AuthPageLayout.jsx';
 import ui from '../styles/ui.module.css';
+import { MAX_EMAIL_LENGTH } from '../../shared/validation.js';
 
 export default function LoginPage() {
   const { login, allowSelfRegistration } = useSession();
@@ -18,11 +19,23 @@ export default function LoginPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setSubmitting(true);
     setError(null);
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      setError('Email is required.');
+      return;
+    }
+
+    if (trimmedEmail.length > MAX_EMAIL_LENGTH) {
+      setError(`Email must be at most ${MAX_EMAIL_LENGTH} characters long.`);
+      return;
+    }
+
+    setSubmitting(true);
 
     try {
-      const user = await login({ email: email.trim(), password });
+      const user = await login({ email: trimmedEmail, password });
       if (user) {
         navigate(from, { replace: true });
       } else {
@@ -68,6 +81,7 @@ export default function LoginPage() {
             autoFocus
             required
             disabled={submitting}
+            maxLength={MAX_EMAIL_LENGTH}
           />
         </div>
         <div className={ui.formField}>

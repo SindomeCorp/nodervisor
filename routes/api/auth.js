@@ -8,6 +8,7 @@ import { EmailAlreadyExistsError } from '../../data/users.js';
 import { ROLE_NONE } from '../../shared/roles.js';
 import { checkPasswordAgainstPolicy } from '../../shared/passwordPolicy.js';
 import { validateRequest } from '../middleware/validation.js';
+import { MAX_EMAIL_LENGTH, MAX_NAME_LENGTH } from '../../shared/validation.js';
 
 /** @typedef {import('../../server/types.js').ServerContext} ServerContext */
 /** @typedef {import('../../server/types.js').RequestSession} RequestSession */
@@ -217,18 +218,19 @@ const loginRequestSchema = z.object({
 });
 
 const registrationSchema = z.object({
-  name: requiredTrimmedString('Name'),
+  name: requiredTrimmedString('Name', MAX_NAME_LENGTH),
   email: emailSchema.transform((value) => value.toLowerCase()),
   password: passwordSchema
 });
 
-function requiredTrimmedString(field) {
+function requiredTrimmedString(field, maxLength) {
   return z.preprocess(
     (value) => (value === undefined ? value : String(value)),
     z
       .string({ required_error: `${field} is required.` })
       .trim()
       .min(1, `${field} is required.`)
+      .max(maxLength, `${field} must be at most ${maxLength} characters long.`)
   );
 }
 
@@ -239,6 +241,7 @@ function normalizedEmailSchema(field) {
       .string({ required_error: `${field} is required.` })
       .trim()
       .min(1, `${field} is required.`)
+      .max(MAX_EMAIL_LENGTH, `${field} must be at most ${MAX_EMAIL_LENGTH} characters long.`)
       .email('Invalid email address.')
   );
 }

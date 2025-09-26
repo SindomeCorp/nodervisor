@@ -9,8 +9,20 @@ import { createAuthApi } from '../../routes/api/auth.js';
 import { createUsersApi } from '../../routes/api/users.js';
 import { ROLE_ADMIN, ROLE_NONE, ROLE_VIEWER } from '../../shared/roles.js';
 import { EmailAlreadyExistsError } from '../../data/users.js';
+import {
+  MAX_EMAIL_LENGTH,
+  MAX_NAME_LENGTH,
+  MAX_ROLE_LENGTH,
+  MAX_URL_LENGTH
+} from '../../shared/validation.js';
 
 const STRONG_PASSWORD = 'ValidPass123!';
+const LONG_NAME = 'a'.repeat(MAX_NAME_LENGTH + 1);
+const LONG_ROLE = 'a'.repeat(MAX_ROLE_LENGTH + 1);
+const EMAIL_DOMAIN = '@example.com';
+const LONG_EMAIL = `${'a'.repeat(MAX_EMAIL_LENGTH - EMAIL_DOMAIN.length + 1)}${EMAIL_DOMAIN}`;
+const URL_PREFIX = 'https://example.com/';
+const LONG_URL = `${URL_PREFIX}${'a'.repeat(MAX_URL_LENGTH - URL_PREFIX.length + 1)}`;
 
 describe('API validation middleware', () => {
   afterEach(() => {
@@ -80,6 +92,32 @@ describe('API validation middleware', () => {
       });
       expect(hostRepository.createHost).not.toHaveBeenCalled();
     });
+
+    it('rejects host names longer than the configured limit', async () => {
+      const response = await request(app)
+        .post('/hosts')
+        .send({ name: LONG_NAME, url: 'http://example.test' });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({ message: `Name must be at most ${MAX_NAME_LENGTH} characters long.` })
+      });
+      expect(hostRepository.createHost).not.toHaveBeenCalled();
+    });
+
+    it('rejects host URLs longer than the configured limit', async () => {
+      const response = await request(app)
+        .post('/hosts')
+        .send({ name: 'Web UI', url: LONG_URL });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({ message: `URL must be at most ${MAX_URL_LENGTH} characters long.` })
+      });
+      expect(hostRepository.createHost).not.toHaveBeenCalled();
+    });
   });
 
   describe('groups', () => {
@@ -144,6 +182,17 @@ describe('API validation middleware', () => {
         status: 'error',
         error: expect.objectContaining({ message: 'Invalid group id.' })
       });
+    });
+
+    it('rejects group names longer than the configured limit', async () => {
+      const response = await request(app).post('/groups').send({ name: LONG_NAME });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({ message: `Name must be at most ${MAX_NAME_LENGTH} characters long.` })
+      });
+      expect(groupRepository.createGroup).not.toHaveBeenCalled();
     });
   });
 
@@ -227,6 +276,60 @@ describe('API validation middleware', () => {
       expect(response.body).toEqual({
         status: 'error',
         error: expect.objectContaining({ message: expect.stringMatching(/Password/) })
+      });
+      expect(userRepository.createUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects user creation when the name is too long', async () => {
+      const response = await request(app)
+        .post('/users')
+        .send({
+          name: LONG_NAME,
+          email: 'admin@example.com',
+          role: ROLE_ADMIN,
+          password: STRONG_PASSWORD
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({ message: `Name must be at most ${MAX_NAME_LENGTH} characters long.` })
+      });
+      expect(userRepository.createUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects user creation when the email is too long', async () => {
+      const response = await request(app)
+        .post('/users')
+        .send({
+          name: 'Admin',
+          email: LONG_EMAIL,
+          role: ROLE_ADMIN,
+          password: STRONG_PASSWORD
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({ message: `Email must be at most ${MAX_EMAIL_LENGTH} characters long.` })
+      });
+      expect(userRepository.createUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects user creation when the role is too long', async () => {
+      const response = await request(app)
+        .post('/users')
+        .send({
+          name: 'Admin',
+          email: 'admin@example.com',
+          role: LONG_ROLE,
+          password: STRONG_PASSWORD
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({ message: `Role must be at most ${MAX_ROLE_LENGTH} characters long.` })
       });
       expect(userRepository.createUser).not.toHaveBeenCalled();
     });
@@ -343,6 +446,47 @@ describe('API validation middleware', () => {
       });
       expect(userRepository.createUser).toHaveBeenCalled();
       hashSpy.mockRestore();
+    });
+
+    it('rejects registration when the name is too long', async () => {
+      const response = await request(app)
+        .post('/auth/register')
+        .send({ name: LONG_NAME, email: 'new@example.com', password: STRONG_PASSWORD });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({ message: `Name must be at most ${MAX_NAME_LENGTH} characters long.` })
+      });
+      expect(userRepository.findByEmail).not.toHaveBeenCalled();
+      expect(userRepository.createUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects registration when the email is too long', async () => {
+      const response = await request(app)
+        .post('/auth/register')
+        .send({ name: 'New User', email: LONG_EMAIL, password: STRONG_PASSWORD });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({ message: `Email must be at most ${MAX_EMAIL_LENGTH} characters long.` })
+      });
+      expect(userRepository.findByEmail).not.toHaveBeenCalled();
+      expect(userRepository.createUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects login when the email is too long', async () => {
+      const response = await request(app)
+        .post('/auth/login')
+        .send({ email: LONG_EMAIL, password: STRONG_PASSWORD });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({ message: `Email must be at most ${MAX_EMAIL_LENGTH} characters long.` })
+      });
+      expect(userRepository.findByEmail).not.toHaveBeenCalled();
     });
   });
 });

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { requestJson } from '../apiClient.js';
 import ui from '../styles/ui.module.css';
 import { ALL_ROLES, ROLE_VIEWER } from '../../shared/roles.js';
+import { MAX_EMAIL_LENGTH, MAX_NAME_LENGTH } from '../../shared/validation.js';
 import { checkPasswordAgainstPolicy, PASSWORD_POLICY_SUMMARY } from '../../shared/passwordPolicy.js';
 
 const ROLE_OPTIONS = ALL_ROLES;
@@ -73,8 +74,22 @@ export default function UserFormPage({ mode }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (!form.name.trim() || !form.email.trim()) {
+    setError(null);
+    const trimmedName = form.name.trim();
+    const trimmedEmail = form.email.trim();
+
+    if (!trimmedName || !trimmedEmail) {
       setError('Name and email are required.');
+      return;
+    }
+
+    if (trimmedName.length > MAX_NAME_LENGTH) {
+      setError(`Name must be at most ${MAX_NAME_LENGTH} characters long.`);
+      return;
+    }
+
+    if (trimmedEmail.length > MAX_EMAIL_LENGTH) {
+      setError(`Email must be at most ${MAX_EMAIL_LENGTH} characters long.`);
       return;
     }
 
@@ -93,8 +108,8 @@ export default function UserFormPage({ mode }) {
     setSaving(true);
     try {
       const payload = {
-        name: form.name.trim(),
-        email: form.email.trim(),
+        name: trimmedName,
+        email: trimmedEmail,
         role: form.role,
         password: form.password || undefined
       };
@@ -141,29 +156,31 @@ export default function UserFormPage({ mode }) {
             <label className={ui.formLabel} htmlFor="name">
               Name
             </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              className={ui.formControl}
-              value={form.name}
-              onChange={handleChange}
-              required
-            />
+          <input
+            id="name"
+            name="name"
+            type="text"
+            className={ui.formControl}
+            value={form.name}
+            onChange={handleChange}
+            required
+            maxLength={MAX_NAME_LENGTH}
+          />
           </div>
           <div className={ui.formField}>
             <label className={ui.formLabel} htmlFor="email">
               Email
             </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              className={ui.formControl}
-              value={form.email}
-              onChange={handleChange}
-              required
-            />
+          <input
+            id="email"
+            name="email"
+            type="email"
+            className={ui.formControl}
+            value={form.email}
+            onChange={handleChange}
+            required
+            maxLength={MAX_EMAIL_LENGTH}
+          />
           </div>
           <div className={ui.formField}>
             <label className={ui.formLabel} htmlFor="role">

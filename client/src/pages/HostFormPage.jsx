@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { requestJson } from '../apiClient.js';
 import ui from '../styles/ui.module.css';
+import { MAX_NAME_LENGTH, MAX_URL_LENGTH } from '../../shared/validation.js';
 
 export default function HostFormPage({ mode }) {
   const isEdit = mode === 'edit';
@@ -61,19 +62,32 @@ export default function HostFormPage({ mode }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    setError(null);
+    const trimmedName = form.name.trim();
+    const trimmedUrl = form.url.trim();
+
+    if (!trimmedName || !trimmedUrl) {
+      setError('Name and URL are required.');
+      return;
+    }
+
+    if (trimmedName.length > MAX_NAME_LENGTH) {
+      setError(`Name must be at most ${MAX_NAME_LENGTH} characters long.`);
+      return;
+    }
+
+    if (trimmedUrl.length > MAX_URL_LENGTH) {
+      setError(`URL must be at most ${MAX_URL_LENGTH} characters long.`);
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
-        name: form.name.trim(),
-        url: form.url.trim(),
+        name: trimmedName,
+        url: trimmedUrl,
         groupId: form.groupId ? Number(form.groupId) : null
       };
-
-      if (!payload.name || !payload.url) {
-        setError('Name and URL are required.');
-        setSaving(false);
-        return;
-      }
 
       if (isEdit && hostId) {
         await requestJson(`/api/v1/hosts/${hostId}`, {
@@ -115,29 +129,31 @@ export default function HostFormPage({ mode }) {
             <label className={ui.formLabel} htmlFor="name">
               Name
             </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              className={ui.formControl}
-              value={form.name}
-              onChange={handleChange}
-              required
-            />
+          <input
+            id="name"
+            name="name"
+            type="text"
+            className={ui.formControl}
+            value={form.name}
+            onChange={handleChange}
+            required
+            maxLength={MAX_NAME_LENGTH}
+          />
           </div>
           <div className={ui.formField}>
             <label className={ui.formLabel} htmlFor="url">
               URL
             </label>
-            <input
-              id="url"
-              name="url"
-              type="url"
-              className={ui.formControl}
-              value={form.url}
-              onChange={handleChange}
-              required
-            />
+          <input
+            id="url"
+            name="url"
+            type="url"
+            className={ui.formControl}
+            value={form.url}
+            onChange={handleChange}
+            required
+            maxLength={MAX_URL_LENGTH}
+          />
           </div>
           <div className={ui.formField}>
             <label className={ui.formLabel} htmlFor="groupId">

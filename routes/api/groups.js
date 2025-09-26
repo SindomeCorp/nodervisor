@@ -5,6 +5,7 @@ import { assertSessionRole } from '../../server/session.js';
 import { ROLE_ADMIN, ROLE_MANAGER } from '../../shared/roles.js';
 import { validateRequest } from '../middleware/validation.js';
 import { handleRouteError, sendError } from './utils.js';
+import { MAX_NAME_LENGTH } from '../../shared/validation.js';
 
 /** @typedef {import('../../server/types.js').ServerContext} ServerContext */
 
@@ -113,7 +114,7 @@ export function createGroupsApi(context) {
 }
 
 const groupPayloadSchema = z.object({
-  name: requiredTrimmedString('Name')
+  name: requiredTrimmedString('Name', MAX_NAME_LENGTH)
 });
 
 const groupIdParamsSchema = z.object({
@@ -122,12 +123,13 @@ const groupIdParamsSchema = z.object({
     .refine((value) => Number.isFinite(value), 'Invalid group id.')
 });
 
-function requiredTrimmedString(field) {
+function requiredTrimmedString(field, maxLength) {
   return z.preprocess(
     (value) => (value === undefined ? value : String(value)),
     z
       .string({ required_error: `${field} is required.` })
       .trim()
       .min(1, `${field} is required.`)
+      .max(maxLength, `${field} must be at most ${maxLength} characters long.`)
   );
 }

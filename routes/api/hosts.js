@@ -6,6 +6,7 @@ import { ROLE_ADMIN, ROLE_MANAGER } from '../../shared/roles.js';
 import { isSafeUrl, normalizeSafeUrl } from '../../shared/url.js';
 import { validateRequest } from '../middleware/validation.js';
 import { handleRouteError, sendError } from './utils.js';
+import { MAX_NAME_LENGTH, MAX_URL_LENGTH } from '../../shared/validation.js';
 
 /** @typedef {import('../../server/types.js').ServerContext} ServerContext */
 
@@ -115,7 +116,7 @@ export function createHostsApi(context) {
 
 const hostPayloadSchema = z
   .object({
-    name: requiredTrimmedString('Name'),
+    name: requiredTrimmedString('Name', MAX_NAME_LENGTH),
     url: requiredHttpUrl('URL'),
     groupId: nullableNumber('groupId must be a number.').optional()
   })
@@ -150,13 +151,14 @@ function nullableNumber(message) {
     });
 }
 
-function requiredTrimmedString(field) {
+function requiredTrimmedString(field, maxLength) {
   return z.preprocess(
     (value) => (value === undefined ? value : String(value)),
     z
       .string({ required_error: `${field} is required.` })
       .trim()
       .min(1, `${field} is required.`)
+      .max(maxLength, `${field} must be at most ${maxLength} characters long.`)
   );
 }
 
@@ -169,6 +171,7 @@ function requiredHttpUrl(field) {
       .string({ required_error: `${field} is required.` })
       .trim()
       .min(1, `${field} is required.`)
+      .max(MAX_URL_LENGTH, `${field} must be at most ${MAX_URL_LENGTH} characters long.`)
       .url({ message })
       .refine((value) => isSafeUrl(value), { message })
   );

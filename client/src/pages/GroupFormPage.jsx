@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { requestJson } from '../apiClient.js';
 import ui from '../styles/ui.module.css';
+import { MAX_NAME_LENGTH } from '../../shared/validation.js';
 
 export default function GroupFormPage({ mode }) {
   const isEdit = mode === 'edit';
@@ -47,14 +48,21 @@ export default function GroupFormPage({ mode }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (!name.trim()) {
+    setError(null);
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       setError('Name is required.');
+      return;
+    }
+
+    if (trimmedName.length > MAX_NAME_LENGTH) {
+      setError(`Name must be at most ${MAX_NAME_LENGTH} characters long.`);
       return;
     }
 
     setSaving(true);
     try {
-      const payload = { name: name.trim() };
+      const payload = { name: trimmedName };
       if (isEdit && groupId) {
         await requestJson(`/api/v1/groups/${groupId}`, {
           method: 'PUT',
@@ -94,15 +102,16 @@ export default function GroupFormPage({ mode }) {
             <label className={ui.formLabel} htmlFor="name">
               Name
             </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              className={ui.formControl}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              required
-            />
+          <input
+            id="name"
+            name="name"
+            type="text"
+            className={ui.formControl}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+            maxLength={MAX_NAME_LENGTH}
+          />
           </div>
           <div className={ui.formActions}>
             <button type="submit" className={`${ui.button} ${ui.buttonPrimary}`} disabled={saving}>
