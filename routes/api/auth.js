@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 
 import { ServiceError } from '../../services/errors.js';
+import { EmailAlreadyExistsError } from '../../data/users.js';
 import { ROLE_NONE } from '../../shared/roles.js';
 import { checkPasswordAgainstPolicy } from '../../shared/passwordPolicy.js';
 import { validateRequest } from '../middleware/validation.js';
@@ -147,6 +148,13 @@ export function createAuthApi(context) {
 
         res.status(201).json({ status: 'success', data: { user: created } });
       } catch (err) {
+        if (err instanceof EmailAlreadyExistsError || err?.name === 'EmailAlreadyExistsError') {
+          res
+            .status(409)
+            .json({ status: 'error', error: { message: 'An account with that email already exists.' } });
+          return;
+        }
+
         handleError(res, err);
       }
     }
