@@ -115,7 +115,7 @@ function normalizeClientName(client) {
     return 'pg';
   }
 
-  return client;
+  return normalized;
 }
 
 function loadEnvironmentFiles(rootDir) {
