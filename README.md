@@ -81,13 +81,17 @@ The session store uses the same connection details by default, but you can overr
 
   4. Navigate to the users page using the top menu. Change the admin credentials or add a new user and remove them.
 
-  5. Navigate to the hosts page using the top menu. Then add a host running supervisord using the form. Your supervisord config on each host should be set up to allow the xmlrpc interface over a inet port.
+ 5. Navigate to the hosts page using the top menu. Then add a host running supervisord using the form. Your supervisord config on each host should be set up to allow the xmlrpc interface over a inet port.
   For instance:
 
       [inet_http_server]
       port = *:9009 ;
 
   At this point, navigating back to the home page should show you a list of your hosts, and the processes running on them.
+
+### Health check endpoint
+
+Set `HEALTH_ENDPOINT_ENABLED=true` in your environment to expose a lightweight JSON health check at `/health`. When enabled the endpoint reports the server's uptime, last restart timestamp, CPU usage, and memory consumption. Leave the variable unset (or set it to `false`) to keep the endpoint disabled.
 
 ### Running behind an Apache reverse proxy
 
