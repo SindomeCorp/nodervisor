@@ -218,7 +218,7 @@ const loginRequestSchema = z.object({
 });
 
 const registrationSchema = z.object({
-  name: requiredTrimmedString('Name'),
+  name: requiredTrimmedString('Name', { max: 32 }),
   email: emailSchema.transform((value) => value.toLowerCase()),
   password: passwordSchema
 });
