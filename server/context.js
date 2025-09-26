@@ -1,7 +1,10 @@
+import { createRequire } from 'module';
 import { createGroupsRepository } from '../data/groups.js';
 import { createHostsRepository } from '../data/hosts.js';
 import { createUsersRepository } from '../data/users.js';
-import packageJson from '../package.json' assert { type: 'json' };
+
+const require = createRequire(import.meta.url);
+const packageJson = require('../package.json');
 
 /** @typedef {import('./types.js').ServerContext} ServerContext */
 /** @typedef {import('./types.js').ServerConfig} ServerConfig */
