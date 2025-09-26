@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { assertSessionAdmin } from '../../server/session.js';
 import { ALL_ROLES } from '../../shared/roles.js';
+import { checkPasswordAgainstPolicy } from '../../shared/passwordPolicy.js';
 import { validateRequest } from '../middleware/validation.js';
 import { handleRouteError, sendError } from './utils.js';
 
@@ -123,18 +124,32 @@ export function createUsersApi(context) {
 
 const roleSchema = requiredTrimmedString('Role').refine((value) => ALL_ROLES.includes(value), 'Invalid role.');
 
+const emailSchema = normalizedEmailSchema('Email');
+
+const passwordSchema = z
+  .preprocess((value) => (value === undefined ? value : String(value)), z.string({ required_error: 'Password is required.' }))
+  .superRefine((value, ctx) => {
+    if (value == null) {
+      return;
+    }
+    const errors = checkPasswordAgainstPolicy(value);
+    for (const message of errors) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+    }
+  });
+
 const userCreateSchema = z.object({
   name: requiredTrimmedString('Name'),
-  email: requiredTrimmedString('Email'),
+  email: emailSchema.transform((value) => value.toLowerCase()),
   role: roleSchema,
-  password: requiredTrimmedString('Password')
+  password: passwordSchema
 });
 
 const userUpdateSchema = z.object({
   name: requiredTrimmedString('Name'),
-  email: requiredTrimmedString('Email'),
+  email: emailSchema.transform((value) => value.toLowerCase()),
   role: roleSchema,
-  password: requiredTrimmedString('Password').optional()
+  password: passwordSchema.optional()
 });
 
 const userIdParamsSchema = z.object({
@@ -150,5 +165,16 @@ function requiredTrimmedString(field) {
       .string({ required_error: `${field} is required.` })
       .trim()
       .min(1, `${field} is required.`)
+  );
+}
+
+function normalizedEmailSchema(field) {
+  return z.preprocess(
+    (value) => (value === undefined ? value : String(value)),
+    z
+      .string({ required_error: `${field} is required.` })
+      .trim()
+      .min(1, `${field} is required.`)
+      .email('Invalid email address.')
   );
 }

@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../App.jsx';
 import AuthPageLayout from './AuthPageLayout.jsx';
 import ui from '../styles/ui.module.css';
+import { checkPasswordAgainstPolicy, PASSWORD_POLICY_SUMMARY } from '../../shared/passwordPolicy.js';
 
 export default function RegisterPage() {
   const { register } = useSession();
@@ -15,8 +16,30 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [passwordErrors, setPasswordErrors] = useState([]);
+  const [confirmError, setConfirmError] = useState('');
 
   const from = location.state?.from?.pathname ?? '/dashboard';
+
+  function handlePasswordChange(value) {
+    setPassword(value);
+    const errors = checkPasswordAgainstPolicy(value);
+    setPasswordErrors(errors);
+    if (confirmPassword && confirmPassword !== value) {
+      setConfirmError('Passwords do not match.');
+    } else {
+      setConfirmError('');
+    }
+  }
+
+  function handleConfirmPasswordChange(value) {
+    setConfirmPassword(value);
+    if (value && value !== password) {
+      setConfirmError('Passwords do not match.');
+    } else {
+      setConfirmError('');
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -27,11 +50,21 @@ export default function RegisterPage() {
       return;
     }
 
+    const passwordValidationErrors = checkPasswordAgainstPolicy(password);
+    if (passwordValidationErrors.length > 0) {
+      setPasswordErrors(passwordValidationErrors);
+      setError(passwordValidationErrors[0]);
+      return;
+    }
+
     if (password !== confirmPassword) {
+      setConfirmError('Passwords do not match.');
       setError('Passwords do not match.');
       return;
     }
 
+    setPasswordErrors([]);
+    setConfirmError('');
     setSubmitting(true);
 
     try {
@@ -103,11 +136,17 @@ export default function RegisterPage() {
             type="password"
             className={ui.formControl}
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={(event) => handlePasswordChange(event.target.value)}
             autoComplete="new-password"
             required
             disabled={submitting}
           />
+          {passwordErrors.length > 0 && (
+            <div className={ui.formError} role="alert">
+              {passwordErrors[0]}
+            </div>
+          )}
+          <div className={ui.formText}>{PASSWORD_POLICY_SUMMARY}</div>
         </div>
         <div className={ui.formField}>
           <label className={ui.formLabel} htmlFor="register-confirm">
@@ -118,11 +157,16 @@ export default function RegisterPage() {
             type="password"
             className={ui.formControl}
             value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
+            onChange={(event) => handleConfirmPasswordChange(event.target.value)}
             autoComplete="new-password"
             required
             disabled={submitting}
           />
+          {confirmError && (
+            <div className={ui.formError} role="alert">
+              {confirmError}
+            </div>
+          )}
         </div>
         <button
           type="submit"

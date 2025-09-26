@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { requestJson } from '../apiClient.js';
 import ui from '../styles/ui.module.css';
 import { ALL_ROLES, ROLE_VIEWER } from '../../shared/roles.js';
+import { checkPasswordAgainstPolicy, PASSWORD_POLICY_SUMMARY } from '../../shared/passwordPolicy.js';
 
 const ROLE_OPTIONS = ALL_ROLES;
 const DEFAULT_ROLE = ROLE_VIEWER;
@@ -21,6 +22,7 @@ export default function UserFormPage({ mode }) {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [passwordErrors, setPasswordErrors] = useState([]);
 
   useEffect(() => {
     if (!isEdit || !userId) {
@@ -41,6 +43,7 @@ export default function UserFormPage({ mode }) {
           role: data?.role && ROLE_OPTIONS.includes(data.role) ? data.role : DEFAULT_ROLE,
           password: ''
         });
+        setPasswordErrors([]);
         setError(null);
       } catch (err) {
         if (!cancelled) {
@@ -62,6 +65,10 @@ export default function UserFormPage({ mode }) {
   function handleChange(event) {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
+    if (name === 'password') {
+      const errors = value ? checkPasswordAgainstPolicy(value) : [];
+      setPasswordErrors(errors);
+    }
   }
 
   async function handleSubmit(event) {
@@ -76,6 +83,13 @@ export default function UserFormPage({ mode }) {
       return;
     }
 
+    const passwordValidationErrors = form.password ? checkPasswordAgainstPolicy(form.password) : [];
+    if ((!isEdit && passwordValidationErrors.length > 0) || (isEdit && form.password && passwordValidationErrors.length > 0)) {
+      setPasswordErrors(passwordValidationErrors);
+      setError(passwordValidationErrors[0]);
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
@@ -84,6 +98,8 @@ export default function UserFormPage({ mode }) {
         role: form.role,
         password: form.password || undefined
       };
+
+      setPasswordErrors([]);
 
       if (isEdit && userId) {
         await requestJson(`/api/v1/users/${userId}`, {
@@ -180,6 +196,12 @@ export default function UserFormPage({ mode }) {
                 Leave blank to keep the existing password.
               </div>
             )}
+            {passwordErrors.length > 0 && (
+              <div className={ui.formError} role="alert">
+                {passwordErrors[0]}
+              </div>
+            )}
+            <div className={ui.formText}>{PASSWORD_POLICY_SUMMARY}</div>
           </div>
           <div className={ui.formActions}>
             <button type="submit" className={`${ui.button} ${ui.buttonPrimary}`} disabled={saving}>
