@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import dashboardStyles from './Dashboard.module.css';
 import ui from './styles/ui.module.css';
+import { createEventSource } from './utils/createEventSource.js';
 
 const STATUS_ORDER = ['CONERR', 'FATAL', 'EXITED', 'STARTING', 'RUNNING', 'STOPPED', 'BACKOFF'];
 const STATUS_META = {
@@ -266,7 +267,7 @@ function useDashboardData(pollInterval) {
         eventSourceRef.current = null;
       }
 
-      const source = new EventSource('/api/v1/supervisors/stream');
+      const source = createEventSource('/api/v1/supervisors/stream');
       eventSourceRef.current = source;
 
       source.onopen = () => {
