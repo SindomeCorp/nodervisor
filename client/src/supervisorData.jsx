@@ -365,8 +365,11 @@ export function useSupervisorData(pollIntervalMs = 10000) {
       };
     };
 
-    performFetch({ showLoading: true, scheduleNext: true });
-    startStream();
+    performFetch({ showLoading: true, scheduleNext: true }).finally(() => {
+      if (!cancelled) {
+        startStream();
+      }
+    });
 
     return () => {
       cancelled = true;
