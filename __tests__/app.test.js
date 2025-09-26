@@ -551,8 +551,8 @@ describe('Nodervisor application', () => {
     expect(hostCache.refresh).toHaveBeenCalledTimes(2);
   });
 
-  it('updates groups through the API', async () => {
-    const { app, groupRepository } = await createTestApp();
+  it('updates groups through the API and refreshes host lookups immediately', async () => {
+    const { app, groupRepository, hostCache, host, context } = await createTestApp();
     const agent = request.agent(app);
 
     await login(agent);
@@ -560,10 +560,48 @@ describe('Nodervisor application', () => {
     groupRepository.getGroupById.mockResolvedValue({ id: 3, name: 'Staging' });
     groupRepository.updateGroup.mockResolvedValue({ id: 3, name: 'Production' });
 
+    host.idGroup = 3;
+    host.GroupName = 'Staging';
+    hostCache.get.mockReturnValue(host);
+    hostCache.getAll.mockReturnValue([host]);
+    hostCache.toObject.mockReturnValue({ [host.idHost]: host });
+    hostCache.refresh.mockImplementation(async () => {
+      host.GroupName = 'Production';
+      return hostCache.toObject();
+    });
+
     const response = await putWithCsrf(agent, '/api/v1/groups/3', { name: 'Production' });
     expect(response.status).toBe(200);
     expect(groupRepository.updateGroup).toHaveBeenCalledWith(3, { name: 'Production' });
     expect(response.body).toEqual({ status: 'success', data: { id: 3, name: 'Production' } });
+    expect(hostCache.refresh).toHaveBeenCalledWith(context.db);
+    expect(host.GroupName).toBe('Production');
+  });
+
+  it('deletes groups through the API and evicts removed hosts immediately', async () => {
+    const { app, groupRepository, hostCache, host, context } = await createTestApp();
+    const agent = request.agent(app);
+
+    await login(agent);
+
+    host.idGroup = 8;
+    host.GroupName = 'Legacy';
+    hostCache.get.mockReturnValue(host);
+    hostCache.getAll.mockReturnValue([host]);
+    hostCache.toObject.mockReturnValue({ [host.idHost]: host });
+    hostCache.refresh.mockImplementation(async () => {
+      hostCache.get.mockReturnValue(null);
+      hostCache.getAll.mockReturnValue([]);
+      hostCache.toObject.mockReturnValue({});
+    });
+
+    groupRepository.getGroupById.mockResolvedValue({ id: 8, name: 'Legacy' });
+
+    const response = await deleteWithCsrf(agent, '/api/v1/groups/8');
+    expect(response.status).toBe(204);
+    expect(groupRepository.deleteGroup).toHaveBeenCalledWith(8);
+    expect(hostCache.refresh).toHaveBeenCalledWith(context.db);
+    expect(hostCache.get(host.idHost)).toBeNull();
   });
 
   it('creates users through the API with hashed passwords', async () => {

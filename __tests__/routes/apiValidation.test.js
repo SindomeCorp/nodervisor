@@ -70,6 +70,7 @@ describe('API validation middleware', () => {
 
   describe('groups', () => {
     let groupRepository;
+    let context;
     let app;
 
     beforeEach(() => {
@@ -81,7 +82,12 @@ describe('API validation middleware', () => {
         deleteGroup: jest.fn()
       };
 
-      const context = { data: { groups: groupRepository } };
+      context = {
+        data: { groups: groupRepository },
+        config: { refreshHosts: jest.fn().mockResolvedValue() },
+        db: {}
+      };
+
       app = createTestApp('/groups', createGroupsApi(context));
     });
 
@@ -94,6 +100,26 @@ describe('API validation middleware', () => {
       expect(response.status).toBe(201);
       expect(response.body).toEqual({ status: 'success', data: createdGroup });
       expect(groupRepository.createGroup).toHaveBeenCalledWith({ name: 'Admins' });
+    });
+
+    it('refreshes host cache immediately after updating a group', async () => {
+      groupRepository.updateGroup.mockResolvedValue({ id: 4, name: 'Renamed' });
+
+      const response = await request(app).put('/groups/4').send({ name: 'Renamed' });
+
+      expect(response.status).toBe(200);
+      expect(groupRepository.updateGroup).toHaveBeenCalledWith(4, { name: 'Renamed' });
+      expect(context.config.refreshHosts).toHaveBeenCalledWith(context.db);
+    });
+
+    it('refreshes host cache immediately after deleting a group', async () => {
+      groupRepository.getGroupById.mockResolvedValue({ id: 6, name: 'Deprecated' });
+
+      const response = await request(app).delete('/groups/6');
+
+      expect(response.status).toBe(204);
+      expect(groupRepository.deleteGroup).toHaveBeenCalledWith(6);
+      expect(context.config.refreshHosts).toHaveBeenCalledWith(context.db);
     });
 
     it('rejects invalid group identifiers', async () => {
