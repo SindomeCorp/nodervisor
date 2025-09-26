@@ -58,7 +58,14 @@ export function renderAppPage({
 }
 
 function serializeState(value) {
-  return JSON.stringify(value).replace(/</g, '\\u003c');
+  const lineSeparatorPattern = new RegExp(String.fromCharCode(0x2028), 'g');
+  const paragraphSeparatorPattern = new RegExp(String.fromCharCode(0x2029), 'g');
+
+  return JSON.stringify(value)
+    .replace(/<\/script/gi, '<\\/script')
+    .replace(/</g, '\\u003c')
+    .replace(lineSeparatorPattern, '\\u2028')
+    .replace(paragraphSeparatorPattern, '\\u2029');
 }
 
 function escapeAttribute(value) {
