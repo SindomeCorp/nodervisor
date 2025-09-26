@@ -68,12 +68,28 @@ export function createApp(context) {
     const now = Date.now();
     const lastActivity = req.session.lastActivityAt;
     if (typeof lastActivity === 'number' && now - lastActivity > idleTimeout) {
+      const cookieConfig = config.session.cookie ?? {};
+      const cookieOptions = { path: cookieConfig.path ?? '/' };
+
+      if (cookieConfig.domain !== undefined) {
+        cookieOptions.domain = cookieConfig.domain;
+      }
+      if (cookieConfig.sameSite !== undefined) {
+        cookieOptions.sameSite = cookieConfig.sameSite;
+      }
+      if (cookieConfig.secure !== undefined) {
+        cookieOptions.secure = cookieConfig.secure;
+      }
+      if (cookieConfig.httpOnly !== undefined) {
+        cookieOptions.httpOnly = cookieConfig.httpOnly;
+      }
+
       req.session.destroy((err) => {
         if (err) {
           next(err);
           return;
         }
-        res.clearCookie(config.session.name);
+        res.clearCookie(config.session.name, cookieOptions);
         next();
       });
       return;

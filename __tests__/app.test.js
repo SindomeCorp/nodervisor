@@ -76,7 +76,12 @@ function createMockSupervisordClient({ processSnapshots } = {}) {
   };
 }
 
-async function createTestApp({ userRole = ROLE_ADMIN, supervisordClientOptions, host: hostOverride } = {}) {
+async function createTestApp({
+  userRole = ROLE_ADMIN,
+  supervisordClientOptions,
+  host: hostOverride,
+  sessionConfig: sessionConfigOverride
+} = {}) {
   const host = {
     idHost: 'alpha',
     idGroup: null,
@@ -154,6 +159,15 @@ async function createTestApp({ userRole = ROLE_ADMIN, supervisordClientOptions, 
       maxAge: 86_400_000
     }
   };
+
+  if (sessionConfigOverride) {
+    const { cookie: cookieOverride, ...rest } = sessionConfigOverride;
+    Object.assign(sessionConfig, rest);
+
+    if (cookieOverride) {
+      sessionConfig.cookie = { ...sessionConfig.cookie, ...cookieOverride };
+    }
+  }
 
   const supervisordConfig = {
     defaults: {
@@ -512,6 +526,88 @@ describe('Nodervisor application', () => {
         allowSelfRegistration: expect.any(Boolean)
       }
     });
+  });
+
+  it('clears idle sessions using the configured cookie attributes', async () => {
+    const sessionOverrides = {
+      cookie: {
+        maxAge: 86_400_000,
+        path: '/custom-path',
+        domain: '127.0.0.1',
+        sameSite: 'strict'
+      }
+    };
+    const { app, context } = await createTestApp({ sessionConfig: sessionOverrides });
+
+    context.config.session = {
+      ...context.config.session,
+      cookie: { ...context.config.session.cookie, maxAge: 50 }
+    };
+
+    app.get('/custom-path/set-session', (req, res) => {
+      req.session.userId = 123;
+      req.session.lastActivityAt = Date.now();
+      res.json({ status: 'ok' });
+    });
+
+    app.get('/custom-path/trigger', (req, res) => {
+      res.json({ status: 'ok' });
+    });
+
+    const agent = request.agent(app);
+
+    const establishResponse = await agent.get('/custom-path/set-session');
+    expect(establishResponse.status).toBe(200);
+
+    const sessionCookie = (establishResponse.headers['set-cookie'] ?? []).find((cookie) =>
+      cookie.startsWith(`${context.config.session.name}=`)
+    );
+    expect(sessionCookie).toBeDefined();
+
+    const rawValue = sessionCookie.split(';')[0].split('=')[1] ?? '';
+    const decoded = decodeURIComponent(rawValue);
+    const sessionId = decoded.startsWith('s:') ? decoded.slice(2, decoded.lastIndexOf('.')) : decoded;
+
+    const initialSessionData = await new Promise((resolve, reject) => {
+      context.sessionStore.get(sessionId, (err, value) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        resolve(value);
+      });
+    });
+    expect(initialSessionData?.lastActivityAt).toEqual(expect.any(Number));
+
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    const timeoutResponse = await agent.get('/custom-path/trigger');
+    expect(timeoutResponse.status).toBe(200);
+
+    const clearingCookie = (timeoutResponse.headers['set-cookie'] ?? []).find(
+      (cookie) =>
+        cookie.startsWith(`${context.config.session.name}=`) &&
+        cookie.includes('Expires=Thu, 01 Jan 1970 00:00:00 GMT')
+    );
+    expect(clearingCookie).toBeDefined();
+    expect(clearingCookie).toContain('Path=/custom-path');
+    expect(clearingCookie).toContain('Domain=127.0.0.1');
+    expect(clearingCookie).toContain('SameSite=Strict');
+    expect(clearingCookie).toContain('HttpOnly');
+
+    const persistedSession = await new Promise((resolve, reject) => {
+      context.sessionStore.get(sessionId, (err, value) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        resolve(value);
+      });
+    });
+
+    expect(persistedSession).toBeUndefined();
   });
 
   it('returns hosts via the JSON API', async () => {
