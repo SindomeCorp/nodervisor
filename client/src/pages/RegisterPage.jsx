@@ -5,6 +5,7 @@ import { useSession } from '../App.jsx';
 import AuthPageLayout from './AuthPageLayout.jsx';
 import ui from '../styles/ui.module.css';
 import { checkPasswordAgainstPolicy, PASSWORD_POLICY_SUMMARY } from '../../shared/passwordPolicy.js';
+import { EMAIL_MAX_LENGTH, NAME_MAX_LENGTH } from '../../shared/validationLimits.js';
 
 export default function RegisterPage() {
   const { register } = useSession();
@@ -45,8 +46,26 @@ export default function RegisterPage() {
     event.preventDefault();
     setError(null);
 
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedName) {
       setError('Name is required.');
+      return;
+    }
+
+    if (trimmedName.length > NAME_MAX_LENGTH) {
+      setError(`Name must be at most ${NAME_MAX_LENGTH} characters.`);
+      return;
+    }
+
+    if (!trimmedEmail) {
+      setError('Email is required.');
+      return;
+    }
+
+    if (trimmedEmail.length > EMAIL_MAX_LENGTH) {
+      setError(`Email must be at most ${EMAIL_MAX_LENGTH} characters.`);
       return;
     }
 
@@ -68,7 +87,7 @@ export default function RegisterPage() {
     setSubmitting(true);
 
     try {
-      const user = await register({ name: name.trim(), email: email.trim(), password });
+      const user = await register({ name: trimmedName, email: trimmedEmail, password });
       if (user) {
         navigate(from, { replace: true });
       } else {
@@ -110,6 +129,7 @@ export default function RegisterPage() {
             autoFocus
             required
             disabled={submitting}
+            maxLength={NAME_MAX_LENGTH}
           />
         </div>
         <div className={ui.formField}>
@@ -125,6 +145,7 @@ export default function RegisterPage() {
             autoComplete="email"
             required
             disabled={submitting}
+            maxLength={EMAIL_MAX_LENGTH}
           />
         </div>
         <div className={ui.formField}>

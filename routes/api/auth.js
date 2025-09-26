@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { ServiceError } from '../../services/errors.js';
 import { ROLE_NONE } from '../../shared/roles.js';
+import { EMAIL_MAX_LENGTH, NAME_MAX_LENGTH } from '../../shared/validationLimits.js';
 import { checkPasswordAgainstPolicy } from '../../shared/passwordPolicy.js';
 import { validateRequest } from '../middleware/validation.js';
 
@@ -204,18 +205,19 @@ const loginRequestSchema = z.object({
 });
 
 const registrationSchema = z.object({
-  name: requiredTrimmedString('Name'),
+  name: requiredTrimmedString('Name', NAME_MAX_LENGTH),
   email: emailSchema.transform((value) => value.toLowerCase()),
   password: passwordSchema
 });
 
-function requiredTrimmedString(field) {
+function requiredTrimmedString(field, maxLength) {
   return z.preprocess(
     (value) => (value === undefined ? value : String(value)),
     z
       .string({ required_error: `${field} is required.` })
       .trim()
       .min(1, `${field} is required.`)
+      .max(maxLength, `${field} must be at most ${maxLength} characters.`)
   );
 }
 
@@ -226,6 +228,7 @@ function normalizedEmailSchema(field) {
       .string({ required_error: `${field} is required.` })
       .trim()
       .min(1, `${field} is required.`)
+      .max(EMAIL_MAX_LENGTH, `${field} must be at most ${EMAIL_MAX_LENGTH} characters.`)
       .email('Invalid email address.')
   );
 }

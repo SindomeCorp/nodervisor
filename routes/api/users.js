@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { assertSessionAdmin } from '../../server/session.js';
 import { EmailAlreadyExistsError } from '../../data/users.js';
 import { ALL_ROLES } from '../../shared/roles.js';
+import { EMAIL_MAX_LENGTH, NAME_MAX_LENGTH, ROLE_MAX_LENGTH } from '../../shared/validationLimits.js';
 import { checkPasswordAgainstPolicy } from '../../shared/passwordPolicy.js';
 import { validateRequest } from '../middleware/validation.js';
 import { handleRouteError, sendError } from './utils.js';
@@ -133,7 +134,10 @@ export function createUsersApi(context) {
   return router;
 }
 
-const roleSchema = requiredTrimmedString('Role').refine((value) => ALL_ROLES.includes(value), 'Invalid role.');
+const roleSchema = requiredTrimmedString('Role', ROLE_MAX_LENGTH).refine(
+  (value) => ALL_ROLES.includes(value),
+  'Invalid role.'
+);
 
 const emailSchema = normalizedEmailSchema('Email');
 
@@ -150,14 +154,14 @@ const passwordSchema = z
   });
 
 const userCreateSchema = z.object({
-  name: requiredTrimmedString('Name'),
+  name: requiredTrimmedString('Name', NAME_MAX_LENGTH),
   email: emailSchema.transform((value) => value.toLowerCase()),
   role: roleSchema,
   password: passwordSchema
 });
 
 const userUpdateSchema = z.object({
-  name: requiredTrimmedString('Name'),
+  name: requiredTrimmedString('Name', NAME_MAX_LENGTH),
   email: emailSchema.transform((value) => value.toLowerCase()),
   role: roleSchema,
   password: passwordSchema.optional()
@@ -169,13 +173,14 @@ const userIdParamsSchema = z.object({
     .refine((value) => Number.isFinite(value), 'Invalid user id.')
 });
 
-function requiredTrimmedString(field) {
+function requiredTrimmedString(field, maxLength) {
   return z.preprocess(
     (value) => (value === undefined ? value : String(value)),
     z
       .string({ required_error: `${field} is required.` })
       .trim()
       .min(1, `${field} is required.`)
+      .max(maxLength, `${field} must be at most ${maxLength} characters.`)
   );
 }
 
@@ -186,6 +191,7 @@ function normalizedEmailSchema(field) {
       .string({ required_error: `${field} is required.` })
       .trim()
       .min(1, `${field} is required.`)
+      .max(EMAIL_MAX_LENGTH, `${field} must be at most ${EMAIL_MAX_LENGTH} characters.`)
       .email('Invalid email address.')
   );
 }

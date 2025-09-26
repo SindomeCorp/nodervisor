@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { requestJson } from '../apiClient.js';
 import ui from '../styles/ui.module.css';
+import { NAME_MAX_LENGTH } from '../../shared/validationLimits.js';
 
 export default function GroupFormPage({ mode }) {
   const isEdit = mode === 'edit';
@@ -47,14 +48,20 @@ export default function GroupFormPage({ mode }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       setError('Name is required.');
+      return;
+    }
+
+    if (trimmedName.length > NAME_MAX_LENGTH) {
+      setError(`Name must be at most ${NAME_MAX_LENGTH} characters.`);
       return;
     }
 
     setSaving(true);
     try {
-      const payload = { name: name.trim() };
+      const payload = { name: trimmedName };
       if (isEdit && groupId) {
         await requestJson(`/api/v1/groups/${groupId}`, {
           method: 'PUT',
@@ -102,6 +109,7 @@ export default function GroupFormPage({ mode }) {
               value={name}
               onChange={(event) => setName(event.target.value)}
               required
+              maxLength={NAME_MAX_LENGTH}
             />
           </div>
           <div className={ui.formActions}>

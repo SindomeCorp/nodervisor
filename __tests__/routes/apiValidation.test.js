@@ -8,6 +8,12 @@ import { createGroupsApi } from '../../routes/api/groups.js';
 import { createAuthApi } from '../../routes/api/auth.js';
 import { createUsersApi } from '../../routes/api/users.js';
 import { ROLE_ADMIN, ROLE_NONE, ROLE_VIEWER } from '../../shared/roles.js';
+import {
+  EMAIL_MAX_LENGTH,
+  HOST_URL_MAX_LENGTH,
+  NAME_MAX_LENGTH,
+  ROLE_MAX_LENGTH
+} from '../../shared/validationLimits.js';
 
 const STRONG_PASSWORD = 'ValidPass123!';
 
@@ -66,6 +72,51 @@ describe('API validation middleware', () => {
       expect(Array.isArray(response.body.error.details)).toBe(true);
       expect(hostRepository.createHost).not.toHaveBeenCalled();
     });
+
+    it('rejects host creation when the name exceeds the maximum length', async () => {
+      const response = await request(app)
+        .post('/hosts')
+        .send({ name: 'a'.repeat(NAME_MAX_LENGTH + 1), url: 'http://example.test' });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({
+          message: `Name must be at most ${NAME_MAX_LENGTH} characters.`,
+          details: expect.arrayContaining([
+            expect.objectContaining({
+              path: ['name'],
+              message: `Name must be at most ${NAME_MAX_LENGTH} characters.`
+            })
+          ])
+        })
+      });
+      expect(hostRepository.createHost).not.toHaveBeenCalled();
+    });
+
+    it('rejects host creation when the URL exceeds the maximum length', async () => {
+      const response = await request(app)
+        .post('/hosts')
+        .send({
+          name: 'Host',
+          url: `http://${'a'.repeat(Math.max(HOST_URL_MAX_LENGTH + 1 - 'http://'.length, 1))}.test`
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({
+          message: `URL must be at most ${HOST_URL_MAX_LENGTH} characters.`,
+          details: expect.arrayContaining([
+            expect.objectContaining({
+              path: ['url'],
+              message: `URL must be at most ${HOST_URL_MAX_LENGTH} characters.`
+            })
+          ])
+        })
+      });
+      expect(hostRepository.createHost).not.toHaveBeenCalled();
+    });
   });
 
   describe('groups', () => {
@@ -104,6 +155,25 @@ describe('API validation middleware', () => {
         status: 'error',
         error: expect.objectContaining({ message: 'Invalid group id.' })
       });
+    });
+
+    it('rejects group creation when the name exceeds the maximum length', async () => {
+      const response = await request(app).post('/groups').send({ name: 'a'.repeat(NAME_MAX_LENGTH + 1) });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({
+          message: `Name must be at most ${NAME_MAX_LENGTH} characters.`,
+          details: expect.arrayContaining([
+            expect.objectContaining({
+              path: ['name'],
+              message: `Name must be at most ${NAME_MAX_LENGTH} characters.`
+            })
+          ])
+        })
+      });
+      expect(groupRepository.createGroup).not.toHaveBeenCalled();
     });
   });
 
@@ -190,6 +260,85 @@ describe('API validation middleware', () => {
       });
       expect(userRepository.createUser).not.toHaveBeenCalled();
     });
+
+    it('rejects user creation when the name exceeds the maximum length', async () => {
+      const response = await request(app)
+        .post('/users')
+        .send({
+          name: 'a'.repeat(NAME_MAX_LENGTH + 1),
+          email: 'user@example.com',
+          role: ROLE_VIEWER,
+          password: STRONG_PASSWORD
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({
+          message: `Name must be at most ${NAME_MAX_LENGTH} characters.`,
+          details: expect.arrayContaining([
+            expect.objectContaining({
+              path: ['name'],
+              message: `Name must be at most ${NAME_MAX_LENGTH} characters.`
+            })
+          ])
+        })
+      });
+      expect(userRepository.createUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects user creation when the email exceeds the maximum length', async () => {
+      const longEmail = buildEmail(EMAIL_MAX_LENGTH + 1);
+      const response = await request(app)
+        .post('/users')
+        .send({
+          name: 'Valid Name',
+          email: longEmail,
+          role: ROLE_VIEWER,
+          password: STRONG_PASSWORD
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({
+          message: `Email must be at most ${EMAIL_MAX_LENGTH} characters.`,
+          details: expect.arrayContaining([
+            expect.objectContaining({
+              path: ['email'],
+              message: `Email must be at most ${EMAIL_MAX_LENGTH} characters.`
+            })
+          ])
+        })
+      });
+      expect(userRepository.createUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects user creation when the role exceeds the maximum length', async () => {
+      const response = await request(app)
+        .post('/users')
+        .send({
+          name: 'Valid Name',
+          email: 'user@example.com',
+          role: 'A'.repeat(ROLE_MAX_LENGTH + 1),
+          password: STRONG_PASSWORD
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({
+          message: `Role must be at most ${ROLE_MAX_LENGTH} characters.`,
+          details: expect.arrayContaining([
+            expect.objectContaining({
+              path: ['role'],
+              message: `Role must be at most ${ROLE_MAX_LENGTH} characters.`
+            })
+          ])
+        })
+      });
+      expect(userRepository.createUser).not.toHaveBeenCalled();
+    });
   });
 
   describe('auth', () => {
@@ -266,6 +415,56 @@ describe('API validation middleware', () => {
       });
       hashSpy.mockRestore();
     });
+
+    it('rejects registration when the name exceeds the maximum length', async () => {
+      const response = await request(app)
+        .post('/auth/register')
+        .send({
+          name: 'a'.repeat(NAME_MAX_LENGTH + 1),
+          email: 'new@example.com',
+          password: STRONG_PASSWORD
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({
+          message: `Name must be at most ${NAME_MAX_LENGTH} characters.`,
+          details: expect.arrayContaining([
+            expect.objectContaining({
+              path: ['name'],
+              message: `Name must be at most ${NAME_MAX_LENGTH} characters.`
+            })
+          ])
+        })
+      });
+      expect(userRepository.createUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects registration when the email exceeds the maximum length', async () => {
+      const response = await request(app)
+        .post('/auth/register')
+        .send({
+          name: 'Valid Name',
+          email: buildEmail(EMAIL_MAX_LENGTH + 1),
+          password: STRONG_PASSWORD
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({
+          message: `Email must be at most ${EMAIL_MAX_LENGTH} characters.`,
+          details: expect.arrayContaining([
+            expect.objectContaining({
+              path: ['email'],
+              message: `Email must be at most ${EMAIL_MAX_LENGTH} characters.`
+            })
+          ])
+        })
+      });
+      expect(userRepository.createUser).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -282,4 +481,10 @@ function createTestApp(mountPath, router) {
   });
 
   return app;
+}
+
+function buildEmail(length) {
+  const domain = '@example.com';
+  const localPartLength = Math.max(length - domain.length, 1);
+  return `${'a'.repeat(localPartLength)}${domain}`;
 }

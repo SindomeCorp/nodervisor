@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { requestJson } from '../apiClient.js';
 import ui from '../styles/ui.module.css';
 import { ALL_ROLES, ROLE_VIEWER } from '../../shared/roles.js';
+import { EMAIL_MAX_LENGTH, NAME_MAX_LENGTH, ROLE_MAX_LENGTH } from '../../shared/validationLimits.js';
 import { checkPasswordAgainstPolicy, PASSWORD_POLICY_SUMMARY } from '../../shared/passwordPolicy.js';
 
 const ROLE_OPTIONS = ALL_ROLES;
@@ -73,8 +74,27 @@ export default function UserFormPage({ mode }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (!form.name.trim() || !form.email.trim()) {
+    const trimmedName = form.name.trim();
+    const trimmedEmail = form.email.trim();
+    const trimmedRole = form.role.trim();
+
+    if (!trimmedName || !trimmedEmail) {
       setError('Name and email are required.');
+      return;
+    }
+
+    if (trimmedName.length > NAME_MAX_LENGTH) {
+      setError(`Name must be at most ${NAME_MAX_LENGTH} characters.`);
+      return;
+    }
+
+    if (trimmedEmail.length > EMAIL_MAX_LENGTH) {
+      setError(`Email must be at most ${EMAIL_MAX_LENGTH} characters.`);
+      return;
+    }
+
+    if (trimmedRole.length > ROLE_MAX_LENGTH) {
+      setError(`Role must be at most ${ROLE_MAX_LENGTH} characters.`);
       return;
     }
 
@@ -93,9 +113,9 @@ export default function UserFormPage({ mode }) {
     setSaving(true);
     try {
       const payload = {
-        name: form.name.trim(),
-        email: form.email.trim(),
-        role: form.role,
+        name: trimmedName,
+        email: trimmedEmail,
+        role: trimmedRole,
         password: form.password || undefined
       };
 
@@ -149,6 +169,7 @@ export default function UserFormPage({ mode }) {
               value={form.name}
               onChange={handleChange}
               required
+              maxLength={NAME_MAX_LENGTH}
             />
           </div>
           <div className={ui.formField}>
@@ -163,6 +184,7 @@ export default function UserFormPage({ mode }) {
               value={form.email}
               onChange={handleChange}
               required
+              maxLength={EMAIL_MAX_LENGTH}
             />
           </div>
           <div className={ui.formField}>

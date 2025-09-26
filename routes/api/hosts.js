@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { assertSessionRole } from '../../server/session.js';
 import { ROLE_ADMIN, ROLE_MANAGER } from '../../shared/roles.js';
+import { HOST_URL_MAX_LENGTH, NAME_MAX_LENGTH } from '../../shared/validationLimits.js';
 import { validateRequest } from '../middleware/validation.js';
 import { handleRouteError, sendError } from './utils.js';
 
@@ -114,8 +115,8 @@ export function createHostsApi(context) {
 
 const hostPayloadSchema = z
   .object({
-    name: requiredTrimmedString('Name'),
-    url: requiredTrimmedString('URL'),
+    name: requiredTrimmedString('Name', NAME_MAX_LENGTH),
+    url: requiredTrimmedString('URL', HOST_URL_MAX_LENGTH),
     groupId: nullableNumber('groupId must be a number.').optional()
   })
   .transform((data) => ({
@@ -149,12 +150,13 @@ function nullableNumber(message) {
     });
 }
 
-function requiredTrimmedString(field) {
+function requiredTrimmedString(field, maxLength) {
   return z.preprocess(
     (value) => (value === undefined ? value : String(value)),
     z
       .string({ required_error: `${field} is required.` })
       .trim()
       .min(1, `${field} is required.`)
+      .max(maxLength, `${field} must be at most ${maxLength} characters.`)
   );
 }

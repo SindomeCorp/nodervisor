@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { requestJson } from '../apiClient.js';
 import ui from '../styles/ui.module.css';
+import { HOST_URL_MAX_LENGTH, NAME_MAX_LENGTH } from '../../shared/validationLimits.js';
 
 export default function HostFormPage({ mode }) {
   const isEdit = mode === 'edit';
@@ -61,19 +62,31 @@ export default function HostFormPage({ mode }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    const trimmedName = form.name.trim();
+    const trimmedUrl = form.url.trim();
+
+    if (!trimmedName || !trimmedUrl) {
+      setError('Name and URL are required.');
+      return;
+    }
+
+    if (trimmedName.length > NAME_MAX_LENGTH) {
+      setError(`Name must be at most ${NAME_MAX_LENGTH} characters.`);
+      return;
+    }
+
+    if (trimmedUrl.length > HOST_URL_MAX_LENGTH) {
+      setError(`URL must be at most ${HOST_URL_MAX_LENGTH} characters.`);
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
-        name: form.name.trim(),
-        url: form.url.trim(),
+        name: trimmedName,
+        url: trimmedUrl,
         groupId: form.groupId ? Number(form.groupId) : null
       };
-
-      if (!payload.name || !payload.url) {
-        setError('Name and URL are required.');
-        setSaving(false);
-        return;
-      }
 
       if (isEdit && hostId) {
         await requestJson(`/api/v1/hosts/${hostId}`, {
@@ -123,6 +136,7 @@ export default function HostFormPage({ mode }) {
               value={form.name}
               onChange={handleChange}
               required
+              maxLength={NAME_MAX_LENGTH}
             />
           </div>
           <div className={ui.formField}>
@@ -137,6 +151,7 @@ export default function HostFormPage({ mode }) {
               value={form.url}
               onChange={handleChange}
               required
+              maxLength={HOST_URL_MAX_LENGTH}
             />
           </div>
           <div className={ui.formField}>
