@@ -4,8 +4,6 @@ export const ROLE_VIEWER = 'Viewer';
 export const ROLE_NONE = 'None';
 
 export const ALL_ROLES = [ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER, ROLE_NONE];
-export const ACTIVE_ROLES = [ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER];
-
 /**
  * Determines whether a user object has at least one of the permitted roles.
  *
