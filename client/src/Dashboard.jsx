@@ -13,7 +13,6 @@ import {
 } from './supervisorData.jsx';
 import dashboardStyles from './Dashboard.module.css';
 import ui from './styles/ui.module.css';
-import { isSafeUrl } from '../../shared/url.js';
 
 const STATUS_TONE_CLASS = {
   danger: dashboardStyles.statusToneDanger,
@@ -668,7 +667,6 @@ function HostPanel({ entry, onProcessAction, onViewLogs }) {
   const { hostId, host, processes, error } = entry;
   const hostName = host?.Name ?? hostId ?? 'Unknown host';
   const groupName = host?.GroupName ?? null;
-  const hostUrl = isSafeUrl(host?.Url) ? host.Url : null;
   const summary = summarizeProcesses(processes);
   const summaryLabel = formatStatusLabel(summary.status);
   const hostProcessCount = processes.length;
@@ -706,16 +704,6 @@ function HostPanel({ entry, onProcessAction, onViewLogs }) {
           <h3 className={dashboardStyles.hostTitle}>{hostName}</h3>
           <div className={dashboardStyles.hostMeta}>
             {groupName && <span>Group: {groupName}</span>}
-            {hostUrl && (
-              <a
-                href={hostUrl}
-                target="_blank"
-                rel="noreferrer"
-                className={dashboardStyles.hostMetaLink}
-              >
-                Open host
-              </a>
-            )}
           </div>
         </div>
         <div className={dashboardStyles.hostHeaderControls}>
