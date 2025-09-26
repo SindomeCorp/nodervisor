@@ -100,10 +100,17 @@ async function createTestApp({
     passwordHash: hashedPassword
   };
 
+  const sessionUser = {
+    id: userRecord.id,
+    name: userRecord.name,
+    email: userRecord.email,
+    role: userRecord.role
+  };
+
   const userRepository = {
     findByEmail: jest.fn(async (email) => (email === userRecord.email ? userRecord : null)),
     listUsers: jest.fn().mockResolvedValue([]),
-    getUserById: jest.fn().mockResolvedValue(null),
+    getUserById: jest.fn().mockResolvedValue(sessionUser),
     createUser: jest.fn(),
     updateUser: jest.fn(),
     deleteUser: jest.fn()
@@ -376,6 +383,8 @@ describe('Nodervisor application', () => {
       role: ROLE_MANAGER
     });
 
+    userRepository.getUserById.mockResolvedValue(updatedUser);
+
     expect(updateResponse.status).toBe(200);
     expect(updateResponse.body).toEqual({ status: 'success', data: updatedUser });
     expect(userRepository.updateUser).toHaveBeenCalledWith(userRecord.id, {
@@ -387,6 +396,30 @@ describe('Nodervisor application', () => {
     const sessionResponse = await agent.get('/api/auth/session');
     expect(sessionResponse.status).toBe(200);
     expect(sessionResponse.body?.data?.user).toEqual(updatedUser);
+  });
+
+  it('refreshes the session user when permissions change outside the session', async () => {
+    const { app, userRepository, userRecord } = await createTestApp();
+    const agent = request.agent(app);
+
+    await login(agent);
+
+    const demotedUser = {
+      id: userRecord.id,
+      name: userRecord.name,
+      email: userRecord.email,
+      role: ROLE_VIEWER
+    };
+
+    userRepository.getUserById.mockImplementation(async () => demotedUser);
+
+    const sessionResponse = await agent.get('/api/auth/session');
+    expect(sessionResponse.status).toBe(200);
+    expect(sessionResponse.body?.data?.user).toEqual(demotedUser);
+
+    const restrictedResponse = await agent.get('/users');
+    expect(restrictedResponse.status).toBe(302);
+    expect(restrictedResponse.header.location).toBe('/dashboard');
   });
 
   it('omits override credentials from supervisor responses', async () => {

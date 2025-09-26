@@ -351,7 +351,7 @@ function createTestApp(mountPath, router) {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
-    req.session = { loggedIn: true, user: { role: 'Admin' } };
+    req.session = { loggedIn: true, user: { role: ROLE_ADMIN } };
     next();
   });
   app.use(mountPath, router);

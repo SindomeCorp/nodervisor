@@ -30,6 +30,7 @@ describe('SupervisordService.createProcessStream interval bounds', () => {
 
   beforeEach(() => {
     jest.useFakeTimers();
+    jest.spyOn(global, 'setTimeout');
     service = new SupervisordService({
       config: { hosts: {} },
       supervisordapi: { connect: jest.fn() },
@@ -43,6 +44,9 @@ describe('SupervisordService.createProcessStream interval bounds', () => {
   afterEach(() => {
     if (service?.fetchAllProcessInfo) {
       service.fetchAllProcessInfo.mockReset();
+    }
+    if (jest.isMockFunction(global.setTimeout)) {
+      global.setTimeout.mockRestore();
     }
     jest.clearAllTimers();
     jest.useRealTimers();

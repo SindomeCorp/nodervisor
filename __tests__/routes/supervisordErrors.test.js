@@ -112,16 +112,31 @@ describe('Supervisord route error sanitization', () => {
     expect(JSON.stringify(response.body)).not.toContain('secret-token');
   });
 
-  const getStreamRouteHandler = () => {
-    const layer = app._router.stack.find(
-      (entry) => entry.route?.path === '/api/v1/supervisors/stream'
-    );
+  const findRouteHandler = (stack, path) => {
+    for (const layer of stack) {
+      if (layer.route?.path === path) {
+        return layer.route.stack[0]?.handle ?? null;
+      }
 
-    if (!layer) {
+      if (layer.name === 'router' && Array.isArray(layer.handle?.stack)) {
+        const nested = findRouteHandler(layer.handle.stack, path);
+        if (nested) {
+          return nested;
+        }
+      }
+    }
+
+    return null;
+  };
+
+  const getStreamRouteHandler = () => {
+    const handler = findRouteHandler(app._router.stack, '/api/v1/supervisors/stream');
+
+    if (!handler) {
       throw new Error('Stream route not found');
     }
 
-    return layer.route.stack[0].handle;
+    return handler;
   };
 
   const createMockResponse = () => {
