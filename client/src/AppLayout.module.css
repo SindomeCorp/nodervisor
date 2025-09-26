@@ -70,6 +70,29 @@
   cursor: progress;
 }
 
+.themeToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  padding: 0.25rem 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background-color: rgba(255, 255, 255, 0.12);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.themeToggle:hover,
+.themeToggle:focus-visible {
+  text-decoration: none;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.themeToggleIcon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .appMain {
   flex: 1;
   padding: 2rem 1rem 3rem;
@@ -89,7 +112,11 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, rgba(0, 116, 74, 0.15) 0%, rgba(0, 116, 74, 0) 100%);
+  background: linear-gradient(
+    180deg,
+    var(--nv-auth-gradient-start) 0%,
+    var(--nv-auth-gradient-end) 100%
+  );
 }
 
 .authMain {
@@ -103,7 +130,7 @@
 .authCard {
   width: 100%;
   max-width: 420px;
-  background-color: #ffffff;
+  background-color: var(--nv-color-surface);
   border-radius: var(--nv-radius-md);
   box-shadow: var(--nv-shadow-md);
   overflow: hidden;
@@ -114,8 +141,8 @@
 }
 
 .authCardFooter {
-  background-color: rgba(17, 63, 82, 0.05);
-  border-top: 1px solid rgba(17, 63, 82, 0.12);
+  background-color: var(--nv-color-surface-muted);
+  border-top: 1px solid var(--nv-color-border);
   padding: 1.25rem 2.25rem 2rem;
   text-align: center;
 }

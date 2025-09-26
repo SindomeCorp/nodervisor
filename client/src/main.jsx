@@ -1,8 +1,11 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
+import { applyTheme, resolvePreferredTheme } from './themePreferences.js';
 
 import './styles/tokens.css';
+
+applyTheme(resolvePreferredTheme());
 
 const container = document.getElementById('app-root');
 

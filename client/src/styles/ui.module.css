@@ -33,14 +33,14 @@
 }
 
 .buttonSecondary {
-  background-color: #e5ecf5;
+  background-color: var(--nv-color-surface-muted);
   color: var(--nv-color-secondary);
-  border-color: rgba(17, 63, 82, 0.2);
+  border-color: var(--nv-color-border-subtle);
 }
 
 .buttonSecondary:hover,
 .buttonSecondary:focus-visible {
-  background-color: #d6e3ef;
+  background-color: var(--nv-color-surface-muted-hover);
 }
 
 .buttonDanger {
@@ -66,12 +66,12 @@
 .buttonGhost {
   background-color: transparent;
   color: inherit;
-  border-color: rgba(27, 30, 46, 0.12);
+  border-color: var(--nv-color-border-subtle);
 }
 
 .buttonGhost:hover,
 .buttonGhost:focus-visible {
-  background-color: rgba(27, 30, 46, 0.06);
+  background-color: var(--nv-color-surface-muted);
 }
 
 .buttonLink {
@@ -104,8 +104,8 @@
 
 .alertError {
   background-color: var(--nv-color-danger-surface);
-  color: #7f1d1d;
-  border-color: rgba(199, 46, 28, 0.2);
+  color: var(--nv-color-danger-text);
+  border-color: var(--nv-color-danger-border);
 }
 
 .textCenter {
@@ -142,7 +142,7 @@
   width: 3rem;
   height: 3rem;
   border-radius: 50%;
-  border: 0.35rem solid rgba(0, 116, 74, 0.18);
+  border: 0.35rem solid var(--nv-color-spinner-track);
   border-top-color: var(--nv-color-primary);
   animation: spin 0.75s linear infinite;
   display: block;
@@ -175,13 +175,13 @@
   border-radius: var(--nv-radius-sm);
   border: 1px solid var(--nv-color-border);
   padding: 0.65rem 0.75rem;
-  background-color: #ffffff;
+  background-color: var(--nv-color-surface);
   color: inherit;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+  box-shadow: inset 0 1px 2px var(--nv-color-input-shadow);
 }
 
 .formControl:focus {
-  outline: 2px solid rgba(0, 116, 74, 0.25);
+  outline: 2px solid var(--nv-color-outline-focus);
   outline-offset: 2px;
 }
 
@@ -205,7 +205,7 @@
 }
 
 .tableWrapper {
-  background-color: #ffffff;
+  background-color: var(--nv-color-surface);
   border-radius: var(--nv-radius-sm);
   box-shadow: var(--nv-shadow-sm);
   overflow-x: auto;
@@ -218,18 +218,18 @@
 }
 
 .table thead {
-  background-color: rgba(17, 63, 82, 0.05);
+  background-color: var(--nv-color-table-head);
 }
 
 .table th,
 .table td {
   text-align: left;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid rgba(17, 63, 82, 0.12);
+  border-bottom: 1px solid var(--nv-color-border-subtle);
 }
 
 .table tbody tr:nth-child(even) {
-  background-color: rgba(17, 63, 82, 0.04);
+  background-color: var(--nv-color-table-stripe);
 }
 
 .tableCellNumeric {

@@ -6,7 +6,7 @@ import {
   Route,
   Routes
 } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import Dashboard from './Dashboard.jsx';
 import OverviewPage from './pages/OverviewPage.jsx';
@@ -31,6 +31,7 @@ import {
   resolveUserRole,
   userHasRole
 } from '../../shared/roles.js';
+import { applyTheme, persistTheme, resolvePreferredTheme } from './themePreferences.js';
 
 function Layout() {
   const { user, logout } = useSession();
@@ -39,6 +40,20 @@ function Layout() {
   const canManageUsers = userHasRole(user, [ROLE_ADMIN]);
   const [logoutError, setLogoutError] = useState(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    const initialTheme = resolvePreferredTheme();
+    applyTheme(initialTheme);
+    return initialTheme;
+  });
+
+  useEffect(() => {
+    applyTheme(theme);
+    persistTheme(theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((current) => (current === 'dark' ? 'light' : 'dark'));
+  }
 
   async function handleLogout(event) {
     event.preventDefault();
@@ -99,6 +114,21 @@ function Layout() {
                   </Link>
                 </li>
               )}
+              <li>
+                <button
+                  type="button"
+                  className={`${layoutStyles.navButton} ${layoutStyles.themeToggle}`}
+                  onClick={toggleTheme}
+                  aria-pressed={theme === 'dark'}
+                  title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                  aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                >
+                  <span aria-hidden="true" className={layoutStyles.themeToggleIcon}>
+                    {theme === 'dark' ? '🌙' : '☀️'}
+                  </span>
+                  <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+                </button>
+              </li>
               <li>
                 <button
                   type="button"
