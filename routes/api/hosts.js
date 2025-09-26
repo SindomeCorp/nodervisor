@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { assertSessionRole } from '../../server/session.js';
 import { ROLE_ADMIN, ROLE_MANAGER } from '../../shared/roles.js';
+import { isSafeUrl, normalizeSafeUrl } from '../../shared/url.js';
 import { validateRequest } from '../middleware/validation.js';
 import { handleRouteError, sendError } from './utils.js';
 
@@ -115,12 +116,12 @@ export function createHostsApi(context) {
 const hostPayloadSchema = z
   .object({
     name: requiredTrimmedString('Name'),
-    url: requiredTrimmedString('URL'),
+    url: requiredHttpUrl('URL'),
     groupId: nullableNumber('groupId must be a number.').optional()
   })
   .transform((data) => ({
     name: data.name,
-    url: data.url,
+    url: normalizeSafeUrl(data.url) ?? data.url,
     groupId: data.groupId ?? null
   }));
 
@@ -156,5 +157,19 @@ function requiredTrimmedString(field) {
       .string({ required_error: `${field} is required.` })
       .trim()
       .min(1, `${field} is required.`)
+  );
+}
+
+function requiredHttpUrl(field) {
+  const message = `${field} must be a valid http(s) URL.`;
+
+  return z.preprocess(
+    (value) => (value === undefined ? value : String(value)),
+    z
+      .string({ required_error: `${field} is required.` })
+      .trim()
+      .min(1, `${field} is required.`)
+      .url({ message })
+      .refine((value) => isSafeUrl(value), { message })
   );
 }

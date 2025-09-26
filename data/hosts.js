@@ -1,3 +1,4 @@
+import { assertSafeUrl, normalizeSafeUrl } from '../shared/url.js';
 import { resolveInsertedId } from './utils.js';
 
 /** @typedef {import('../server/types.js').Knex} Knex */
@@ -21,10 +22,12 @@ export function createHostsRepository(db) {
       return null;
     }
 
+    const safeUrl = normalizeSafeUrl(row.Url);
+
     return {
       id: row.idHost,
       name: row.Name,
-      url: row.Url,
+      url: safeUrl ?? '',
       groupId: row.idGroup ?? null,
       groupName: row.GroupName ?? null
     };
@@ -87,10 +90,12 @@ export function createHostsRepository(db) {
      * @returns {Promise<Host | null>}
      */
     async createHost({ name, url, groupId = null }) {
+      const safeUrl = assertSafeUrl(url);
+
       return db.transaction(async (trx) => {
         const insertData = {
           Name: name,
-          Url: url,
+          Url: safeUrl,
           idGroup: groupId ?? null
         };
 
@@ -112,12 +117,14 @@ export function createHostsRepository(db) {
      * @returns {Promise<Host | null>}
      */
     async updateHost(id, { name, url, groupId = null }) {
+      const safeUrl = assertSafeUrl(url);
+
       return db.transaction(async (trx) => {
         await trx(TABLE)
           .where(ID_COLUMN, id)
           .update({
             Name: name,
-            Url: url,
+            Url: safeUrl,
             idGroup: groupId ?? null
           });
 

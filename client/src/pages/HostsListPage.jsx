@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { requestJson } from '../apiClient.js';
 import ui from '../styles/ui.module.css';
+import { isSafeUrl } from '../../../shared/url.js';
 
 export default function HostsListPage() {
   const [hosts, setHosts] = useState([]);
@@ -86,9 +87,13 @@ export default function HostsListPage() {
                 <tr key={host.id}>
                   <th scope="row">{host.name}</th>
                   <td>
-                    <a href={host.url} target="_blank" rel="noreferrer">
-                      {host.url}
-                    </a>
+                    {isSafeUrl(host.url) ? (
+                      <a href={host.url} target="_blank" rel="noreferrer">
+                        {host.url}
+                      </a>
+                    ) : (
+                      host.url || '—'
+                    )}
                   </td>
                   <td>{host.groupName ?? '—'}</td>
                   <td className={ui.tableCellNumeric}>
