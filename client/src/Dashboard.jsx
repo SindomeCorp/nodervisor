@@ -103,7 +103,6 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
   const appendModeRef = useRef(false);
   const logStateRef = useRef(logState);
   const logContentRef = useRef(null);
-  const shouldStickToBottomRef = useRef(false);
   const pendingScrollRef = useRef(null);
   const storageKey = hostId ? `nodervisor:logAutoRefresh:${hostId}` : null;
 
@@ -154,16 +153,18 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
     const shouldAppend = appendModeRef.current && reloadToken !== 0;
     appendModeRef.current = false;
 
-    if (shouldAppend) {
-      const container = logContentRef.current;
-      if (container) {
-        shouldStickToBottomRef.current = isScrolledToBottom(container);
-      } else {
-        shouldStickToBottomRef.current = true;
+    const measureShouldStickToBottom = () => {
+      if (!shouldAppend) {
+        return false;
       }
-    } else {
-      shouldStickToBottomRef.current = false;
-    }
+
+      const container = logContentRef.current;
+      if (!container) {
+        return true;
+      }
+
+      return isScrolledToBottom(container);
+    };
     pendingScrollRef.current = null;
 
     setLogState((prev) => {
@@ -208,6 +209,7 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
         }
 
         const [content, offset, overflow] = Array.isArray(data) ? data : ['', 0, false];
+        const shouldStickToBottom = measureShouldStickToBottom();
         let shouldScrollAfterUpdate = false;
         setLogState((prev) => {
           const previousTab = prev[activeTab] ?? {
@@ -222,12 +224,7 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
           const newContent = typeof content === 'string' ? content : '';
           const canAppend = shouldAppend && nextOffset > previousTab.offset;
           const combinedContent = canAppend ? `${previousTab.content}${newContent}` : newContent;
-          if (
-            shouldAppend &&
-            shouldStickToBottomRef.current &&
-            typeof newContent === 'string' &&
-            newContent.length > 0
-          ) {
+          if (shouldAppend && shouldStickToBottom && typeof newContent === 'string' && newContent.length > 0) {
             shouldScrollAfterUpdate = true;
           }
           return {
