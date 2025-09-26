@@ -10,7 +10,9 @@ import { createApp } from '../server/app.js';
 import { ROLE_ADMIN, ROLE_MANAGER, ROLE_NONE, ROLE_VIEWER } from '../shared/roles.js';
 
 const TEST_EMAIL = 'admin@example.com';
-const TEST_PASSWORD = 'correct-password';
+const TEST_PASSWORD = 'ValidPass123!';
+const WRONG_PASSWORD = 'WrongPass123!';
+const RATE_LIMIT_PASSWORD = 'BadPassword123!';
 
 let hashedPassword;
 
@@ -253,7 +255,7 @@ describe('Nodervisor application', () => {
     const { app } = await createTestApp();
     const agent = request.agent(app);
 
-    const loginResponse = await login(agent, TEST_EMAIL, 'wrong-password');
+    const loginResponse = await login(agent, TEST_EMAIL, WRONG_PASSWORD);
     expect(loginResponse.status).toBe(401);
     expect(loginResponse.body).toEqual({
       status: 'error',
@@ -283,7 +285,7 @@ describe('Nodervisor application', () => {
     const agent = request.agent(app);
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      const response = await login(agent, TEST_EMAIL, 'bad-password');
+      const response = await login(agent, TEST_EMAIL, RATE_LIMIT_PASSWORD);
       expect(response.status).toBe(401);
     }
 
@@ -291,7 +293,7 @@ describe('Nodervisor application', () => {
     const throttledResponse = await agent
       .post('/api/auth/login')
       .set('x-csrf-token', csrfToken)
-      .send({ email: TEST_EMAIL, password: 'bad-password' });
+      .send({ email: TEST_EMAIL, password: RATE_LIMIT_PASSWORD });
 
     expect(throttledResponse.status).toBe(429);
     expect(throttledResponse.body).toEqual({
@@ -534,13 +536,13 @@ describe('Nodervisor application', () => {
       name: 'CLI User',
       email: 'cli@example.test',
       role: ROLE_VIEWER,
-      password: 'temporary'
+      password: 'TempPassword123!'
     });
 
     expect(response.status).toBe(201);
     const payload = userRepository.createUser.mock.calls[0][0];
     expect(payload).toMatchObject({ name: 'CLI User', email: 'cli@example.test', role: ROLE_VIEWER });
-    expect(await bcrypt.compare('temporary', payload.passwordHash)).toBe(true);
+    expect(await bcrypt.compare('TempPassword123!', payload.passwordHash)).toBe(true);
   });
 
   it('streams incremental supervisor updates', async () => {

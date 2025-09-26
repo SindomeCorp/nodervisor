@@ -5,8 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 
 import { createHostsApi } from '../../routes/api/hosts.js';
 import { createGroupsApi } from '../../routes/api/groups.js';
+import { createAuthApi } from '../../routes/api/auth.js';
 import { createUsersApi } from '../../routes/api/users.js';
-import { ROLE_ADMIN, ROLE_VIEWER } from '../../shared/roles.js';
+import { ROLE_ADMIN, ROLE_NONE, ROLE_VIEWER } from '../../shared/roles.js';
+
+const STRONG_PASSWORD = 'ValidPass123!';
 
 describe('API validation middleware', () => {
   afterEach(() => {
@@ -132,7 +135,7 @@ describe('API validation middleware', () => {
           name: ' Admin ',
           email: ' admin@example.com ',
           role: ` ${ROLE_ADMIN} `,
-          password: 'super-secret'
+          password: STRONG_PASSWORD
         });
 
       expect(response.status).toBe(201);
@@ -168,6 +171,100 @@ describe('API validation middleware', () => {
       expect(response.body.status).toBe('error');
       expect(response.body.error.message).toBe('Email is required.');
       expect(userRepository.createUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects user creation when the password violates the policy', async () => {
+      const response = await request(app)
+        .post('/users')
+        .send({
+          name: 'Admin',
+          email: 'admin@example.com',
+          role: ROLE_ADMIN,
+          password: 'weakpass'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({ message: expect.stringMatching(/Password/) })
+      });
+      expect(userRepository.createUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('auth', () => {
+    let app;
+    let userRepository;
+
+    beforeEach(() => {
+      userRepository = {
+        findByEmail: jest.fn(),
+        createUser: jest.fn(),
+        updateUser: jest.fn(),
+        deleteUser: jest.fn(),
+        listUsers: jest.fn()
+      };
+
+      const context = {
+        config: {
+          auth: { allowSelfRegistration: true },
+          session: { name: 'test.sid' }
+        },
+        data: { users: userRepository }
+      };
+
+      app = express();
+      app.use(express.json());
+      app.use((req, _res, next) => {
+        req.session = {
+          regenerate(callback) {
+            callback(null);
+          }
+        };
+        next();
+      });
+      app.use('/auth', createAuthApi(context));
+    });
+
+    it('rejects login attempts with passwords that violate the policy', async () => {
+      const response = await request(app).post('/auth/login').send({
+        email: 'user@example.com',
+        password: 'weakpass'
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        status: 'error',
+        error: expect.objectContaining({ message: expect.stringMatching(/Password/) })
+      });
+      expect(userRepository.findByEmail).not.toHaveBeenCalled();
+    });
+
+    it('allows registration when the payload satisfies the password policy', async () => {
+      const hashSpy = jest.spyOn(bcrypt, 'hash').mockResolvedValue('hashed-password');
+      userRepository.findByEmail.mockResolvedValue(null);
+      userRepository.createUser.mockResolvedValue({
+        id: 1,
+        name: 'New User',
+        email: 'new@example.com',
+        role: ROLE_ADMIN
+      });
+
+      const response = await request(app).post('/auth/register').send({
+        name: 'New User',
+        email: 'new@example.com',
+        password: STRONG_PASSWORD
+      });
+
+      expect(response.status).toBe(201);
+      expect(response.body.status).toBe('success');
+      expect(userRepository.createUser).toHaveBeenCalledWith({
+        name: 'New User',
+        email: 'new@example.com',
+        role: ROLE_NONE,
+        passwordHash: 'hashed-password'
+      });
+      hashSpy.mockRestore();
     });
   });
 });

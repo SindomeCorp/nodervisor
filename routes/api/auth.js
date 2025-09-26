@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import rateLimit from 'express-rate-limit';
+import { z } from 'zod';
 
 import { ServiceError } from '../../services/errors.js';
 import { ROLE_NONE } from '../../shared/roles.js';
+import { checkPasswordAgainstPolicy } from '../../shared/passwordPolicy.js';
+import { validateRequest } from '../middleware/validation.js';
 
 /** @typedef {import('../../server/types.js').ServerContext} ServerContext */
 /** @typedef {import('../../server/types.js').RequestSession} RequestSession */
@@ -44,48 +47,47 @@ export function createAuthApi(context) {
     });
   });
 
-  router.post('/login', loginLimiter, async (req, res) => {
-    try {
-      const { email, password } = req.body ?? {};
-      if (!email || !password) {
-        res.status(400).json({ status: 'error', error: { message: 'Email and password are required.' } });
-        return;
-      }
+  router.post(
+    '/login',
+    loginLimiter,
+    validateRequest({ body: loginRequestSchema }),
+    async (req, res) => {
+      try {
+        const { email, password } = req.validated.body;
+        const userRecord = await userRepository.findByEmail(email);
 
-      const normalizedEmail = String(email).trim();
-      const userRecord = await userRepository.findByEmail(normalizedEmail);
+        if (!userRecord) {
+          res.status(401).json({ status: 'error', error: { message: 'Invalid email or password.' } });
+          return;
+        }
 
-      if (!userRecord) {
-        res.status(401).json({ status: 'error', error: { message: 'Invalid email or password.' } });
-        return;
-      }
+        const passwordMatch = await bcrypt.compare(password, userRecord.passwordHash);
+        if (!passwordMatch) {
+          res.status(401).json({ status: 'error', error: { message: 'Invalid email or password.' } });
+          return;
+        }
 
-      const passwordMatch = await bcrypt.compare(String(password), userRecord.passwordHash);
-      if (!passwordMatch) {
-        res.status(401).json({ status: 'error', error: { message: 'Invalid email or password.' } });
-        return;
-      }
-
-      await new Promise((resolve, reject) => {
-        req.session.regenerate((err) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          resolve();
+        await new Promise((resolve, reject) => {
+          req.session.regenerate((err) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            resolve();
+          });
         });
-      });
 
-      const session = /** @type {RequestSession} */ (req.session);
-      session.loggedIn = true;
-      const { passwordHash: _passwordHash, ...user } = userRecord;
-      session.user = user;
+        const session = /** @type {RequestSession} */ (req.session);
+        session.loggedIn = true;
+        const { passwordHash: _passwordHash, ...user } = userRecord;
+        session.user = user;
 
-      res.json({ status: 'success', data: { user } });
-    } catch (err) {
-      handleError(res, err);
+        res.json({ status: 'success', data: { user } });
+      } catch (err) {
+        handleError(res, err);
+      }
     }
-  });
+  );
 
   router.post('/logout', async (req, res, next) => {
     req.session?.destroy((err) => {
@@ -98,57 +100,57 @@ export function createAuthApi(context) {
     });
   });
 
-  router.post('/register', async (req, res) => {
-    try {
+  router.post(
+    '/register',
+    (req, res, next) => {
       if (!isRegistrationAllowed()) {
         res.status(403).json({ status: 'error', error: { message: 'Self-registration is disabled.' } });
         return;
       }
+      next();
+    },
+    validateRequest({ body: registrationSchema }),
+    async (req, res) => {
+      try {
+        const { name, email, password } = req.validated.body;
+        const existing = await userRepository.findByEmail(email);
+        if (existing) {
+          res.status(409).json({ status: 'error', error: { message: 'An account with that email already exists.' } });
+          return;
+        }
 
-      const { name, email, password } = req.body ?? {};
-      if (!name || !email || !password) {
-        res.status(400).json({ status: 'error', error: { message: 'Name, email, and password are required.' } });
-        return;
-      }
-
-      const normalizedEmail = String(email).trim();
-      const existing = await userRepository.findByEmail(normalizedEmail);
-      if (existing) {
-        res.status(409).json({ status: 'error', error: { message: 'An account with that email already exists.' } });
-        return;
-      }
-
-      const passwordHash = await bcrypt.hash(String(password), 10);
-      const created = await userRepository.createUser({
-        name: String(name).trim(),
-        email: normalizedEmail,
-        passwordHash,
-        role: ROLE_NONE
-      });
-
-      if (!created) {
-        throw new ServiceError('Failed to create account', 500);
-      }
-
-      await new Promise((resolve, reject) => {
-        req.session.regenerate((err) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          resolve();
+        const passwordHash = await bcrypt.hash(password, 10);
+        const created = await userRepository.createUser({
+          name,
+          email,
+          passwordHash,
+          role: ROLE_NONE
         });
-      });
 
-      const session = /** @type {RequestSession} */ (req.session);
-      session.loggedIn = true;
-      session.user = created;
+        if (!created) {
+          throw new ServiceError('Failed to create account', 500);
+        }
 
-      res.status(201).json({ status: 'success', data: { user: created } });
-    } catch (err) {
-      handleError(res, err);
+        await new Promise((resolve, reject) => {
+          req.session.regenerate((err) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            resolve();
+          });
+        });
+
+        const session = /** @type {RequestSession} */ (req.session);
+        session.loggedIn = true;
+        session.user = created;
+
+        res.status(201).json({ status: 'success', data: { user: created } });
+      } catch (err) {
+        handleError(res, err);
+      }
     }
-  });
+  );
 
   return router;
 }
@@ -180,4 +182,50 @@ function handleError(res, err) {
   }
 
   res.status(500).json({ status: 'error', error: { message: 'Unexpected error' } });
+}
+
+const emailSchema = normalizedEmailSchema('Email');
+
+const passwordSchema = z
+  .preprocess((value) => (value === undefined ? value : String(value)), z.string({ required_error: 'Password is required.' }))
+  .superRefine((value, ctx) => {
+    if (value == null) {
+      return;
+    }
+    const errors = checkPasswordAgainstPolicy(value);
+    for (const message of errors) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+    }
+  });
+
+const loginRequestSchema = z.object({
+  email: emailSchema.transform((value) => value.toLowerCase()),
+  password: passwordSchema
+});
+
+const registrationSchema = z.object({
+  name: requiredTrimmedString('Name'),
+  email: emailSchema.transform((value) => value.toLowerCase()),
+  password: passwordSchema
+});
+
+function requiredTrimmedString(field) {
+  return z.preprocess(
+    (value) => (value === undefined ? value : String(value)),
+    z
+      .string({ required_error: `${field} is required.` })
+      .trim()
+      .min(1, `${field} is required.`)
+  );
+}
+
+function normalizedEmailSchema(field) {
+  return z.preprocess(
+    (value) => (value === undefined ? value : String(value)),
+    z
+      .string({ required_error: `${field} is required.` })
+      .trim()
+      .min(1, `${field} is required.`)
+      .email('Invalid email address.')
+  );
 }
