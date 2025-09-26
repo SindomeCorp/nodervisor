@@ -137,6 +137,18 @@
   white-space: nowrap;
 }
 
+.pidCell {
+  font-size: 0.95rem;
+  color: var(--nv-color-text-muted);
+  white-space: nowrap;
+}
+
+.startedCell {
+  font-size: 0.95rem;
+  color: var(--nv-color-text-muted);
+  white-space: nowrap;
+}
+
 .actionsCell {
   text-align: right;
 }
