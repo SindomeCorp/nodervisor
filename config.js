@@ -244,6 +244,7 @@ class HostCache {
     this.#hosts = new Map();
     this.defaultRefreshIntervalMs = refreshIntervalMs;
     this.lastRefreshedAt = null;
+    this.#refreshQueue = Promise.resolve();
   }
 
   async warm(db) {
@@ -251,26 +252,32 @@ class HostCache {
   }
 
   async refresh(db) {
-    try {
-      const rows = await db('hosts')
-        .leftJoin('groups', 'hosts.idGroup', 'groups.idGroup')
-        .select('hosts.idHost', 'hosts.idGroup', 'hosts.Name', 'hosts.Url', 'groups.Name as GroupName');
+    const task = this.#refreshQueue.then(async () => {
+      try {
+        const rows = await db('hosts')
+          .leftJoin('groups', 'hosts.idGroup', 'groups.idGroup')
+          .select('hosts.idHost', 'hosts.idGroup', 'hosts.Name', 'hosts.Url', 'groups.Name as GroupName');
 
-      const next = new Map();
-      for (const row of rows) {
-        const id = String(row.idHost);
-        const override = this.#overrides.get(id);
-        const hostRecord = this.#buildHostRecord(row, override);
-        next.set(id, hostRecord);
+        const next = new Map();
+        for (const row of rows) {
+          const id = String(row.idHost);
+          const override = this.#overrides.get(id);
+          const hostRecord = this.#buildHostRecord(row, override);
+          next.set(id, hostRecord);
+        }
+
+        this.#hosts = next;
+        this.lastRefreshedAt = new Date();
+        return this.toObject();
+      } catch (err) {
+        this.#hosts = new Map();
+        throw err;
       }
+    });
 
-      this.#hosts = next;
-      this.lastRefreshedAt = new Date();
-      return this.toObject();
-    } catch (err) {
-      this.#hosts = new Map();
-      throw err;
-    }
+    this.#refreshQueue = task.catch(() => {});
+
+    return task;
   }
 
   getAll() {
@@ -301,7 +308,9 @@ class HostCache {
   scheduleRefresh(db, options = {}) {
     const intervalMs = options.intervalMs ?? this.defaultRefreshIntervalMs;
     if (!intervalMs || intervalMs <= 0) {
-      return () => {};
+      return async () => {
+        await this.waitForRefresh();
+      };
     }
 
     const logger = options.logger ?? console;
@@ -315,7 +324,14 @@ class HostCache {
       timer.unref();
     }
 
-    return () => clearInterval(timer);
+    return async () => {
+      clearInterval(timer);
+      await this.waitForRefresh();
+    };
+  }
+
+  waitForRefresh() {
+    return this.#refreshQueue;
   }
 
   #buildHostRecord(row, override) {
@@ -333,6 +349,7 @@ class HostCache {
 
   #hosts;
   #overrides;
+  #refreshQueue;
 }
 
 const hostOverrides = readHostOverrides(process.env);
