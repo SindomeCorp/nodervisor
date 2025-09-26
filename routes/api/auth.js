@@ -8,6 +8,7 @@ import { EmailAlreadyExistsError } from '../../data/users.js';
 import { ROLE_NONE } from '../../shared/roles.js';
 import { checkPasswordAgainstPolicy } from '../../shared/passwordPolicy.js';
 import { validateRequest } from '../middleware/validation.js';
+import { normalizedEmailSchema, requiredTrimmedString } from './schemaHelpers.js';
 
 /** @typedef {import('../../server/types.js').ServerContext} ServerContext */
 /** @typedef {import('../../server/types.js').RequestSession} RequestSession */
@@ -221,24 +222,3 @@ const registrationSchema = z.object({
   email: emailSchema.transform((value) => value.toLowerCase()),
   password: passwordSchema
 });
-
-function requiredTrimmedString(field) {
-  return z.preprocess(
-    (value) => (value === undefined ? value : String(value)),
-    z
-      .string({ required_error: `${field} is required.` })
-      .trim()
-      .min(1, `${field} is required.`)
-  );
-}
-
-function normalizedEmailSchema(field) {
-  return z.preprocess(
-    (value) => (value === undefined ? value : String(value)),
-    z
-      .string({ required_error: `${field} is required.` })
-      .trim()
-      .min(1, `${field} is required.`)
-      .email('Invalid email address.')
-  );
-}

@@ -8,6 +8,7 @@ import { ALL_ROLES } from '../../shared/roles.js';
 import { checkPasswordAgainstPolicy } from '../../shared/passwordPolicy.js';
 import { validateRequest } from '../middleware/validation.js';
 import { handleRouteError, sendError } from './utils.js';
+import { normalizedEmailSchema, requiredTrimmedString } from './schemaHelpers.js';
 
 /** @typedef {import('../../server/types.js').ServerContext} ServerContext */
 
@@ -168,24 +169,3 @@ const userIdParamsSchema = z.object({
     .number({ invalid_type_error: 'Invalid user id.' })
     .refine((value) => Number.isFinite(value), 'Invalid user id.')
 });
-
-function requiredTrimmedString(field) {
-  return z.preprocess(
-    (value) => (value === undefined ? value : String(value)),
-    z
-      .string({ required_error: `${field} is required.` })
-      .trim()
-      .min(1, `${field} is required.`)
-  );
-}
-
-function normalizedEmailSchema(field) {
-  return z.preprocess(
-    (value) => (value === undefined ? value : String(value)),
-    z
-      .string({ required_error: `${field} is required.` })
-      .trim()
-      .min(1, `${field} is required.`)
-      .email('Invalid email address.')
-  );
-}
