@@ -42,7 +42,7 @@ import {
 export const SessionContext = createContext({
   user: null,
   status: 'loading',
-  allowSelfRegistration: true,
+  allowSelfRegistration: false,
   login: async () => {},
   logout: async () => {},
   register: async () => {},
@@ -58,7 +58,7 @@ function SessionProvider({ initialState, children }) {
   const [user, setUser] = useState(initialState?.user ?? null);
   const [status, setStatus] = useState(initialState?.user ? 'authenticated' : 'loading');
   const [allowSelfRegistration, setAllowSelfRegistration] = useState(
-    initialState?.auth?.allowSelfRegistration ?? true
+    initialState?.auth?.allowSelfRegistration ?? false
   );
   const initialFetchCompleted = useRef(Boolean(initialState?.user));
 

@@ -30,9 +30,9 @@ A Supervisord manager in node.js. Nodervisor provides a real-time web dashboard 
         # or provide a hash instead of plain text
         # ADMIN_SEED_PASSWORD_HASH=$2b$12$...
 
-     To disable public account creation, set `AUTH_ALLOW_SELF_REGISTRATION=false`. Leaving the flag enabled allows anyone who
-     can reach the login screen to create a low-privilege account, which may still reveal operational details such as host
-     names and process states.
+    Self-registration is disabled by default so new accounts must be created by an administrator. If you want to allow
+    visitors to sign up for low-privilege accounts, set `AUTH_ALLOW_SELF_REGISTRATION=true`. Be mindful that doing so can
+    expose operational details—such as host names and process states—to anyone who can reach the login screen.
 
   3. Run the database migrations and seed data:
 

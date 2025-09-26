@@ -19,7 +19,7 @@ export function renderAppPage({
   const cssAssets = [...(dashboardAssets?.css ?? [])];
 
   const scriptAssets = dashboardAssets?.js ? [dashboardAssets.js] : [];
-  const allowSelfRegistration = Boolean(auth?.allowSelfRegistration ?? true);
+  const allowSelfRegistration = Boolean(auth?.allowSelfRegistration ?? false);
   const serializedState = serializeState({
     user: session?.user ?? null,
     auth: {
