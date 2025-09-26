@@ -67,6 +67,46 @@ function StatusBadge({ status, children }) {
 }
 
 const SCROLL_STICKY_EPSILON_PX = 2;
+const HOST_EXPANSION_STORAGE_PREFIX = 'nodervisor:hostExpanded:';
+
+function readHostExpansion(hostId, fallback = false) {
+  if (!hostId || typeof window === 'undefined') {
+    return fallback;
+  }
+
+  const storageKey = `${HOST_EXPANSION_STORAGE_PREFIX}${hostId}`;
+  try {
+    const storedValue = window.localStorage.getItem(storageKey);
+    if (storedValue === null) {
+      return fallback;
+    }
+    return storedValue === 'true';
+  } catch (_error) {
+    return fallback;
+  }
+}
+
+function writeHostExpansion(hostId, expanded) {
+  if (!hostId || typeof window === 'undefined') {
+    return;
+  }
+
+  const storageKey = `${HOST_EXPANSION_STORAGE_PREFIX}${hostId}`;
+  try {
+    window.localStorage.setItem(storageKey, expanded ? 'true' : 'false');
+  } catch (_error) {
+    // Ignore storage errors (e.g., quota exceeded or disabled storage).
+  }
+}
+
+function getHostBodyId(hostId) {
+  if (!hostId) {
+    return 'host-panel-body';
+  }
+
+  const safeId = String(hostId).replace(/[^a-zA-Z0-9_-]/g, '-');
+  return `host-panel-body-${safeId}`;
+}
 
 function isScrolledToBottom(node) {
   if (node.scrollHeight <= node.clientHeight) {
@@ -638,6 +678,26 @@ function HostPanel({ entry, onProcessAction, onViewLogs }) {
       : hostProcessCount === 0
       ? 'No services reported.'
       : `${hostProcessCount} ${hostProcessCount === 1 ? 'service' : 'services'}`;
+  const [expanded, setExpanded] = useState(() => readHostExpansion(hostId, false));
+  const hostBodyId = useMemo(() => getHostBodyId(hostId), [hostId]);
+
+  useEffect(() => {
+    setExpanded(readHostExpansion(hostId, false));
+  }, [hostId]);
+
+  const toggleExpanded = () => {
+    setExpanded((previous) => {
+      const next = !previous;
+      writeHostExpansion(hostId, next);
+      return next;
+    });
+  };
+
+  const toggleLabel = expanded ? 'Hide services' : 'Show services';
+  const toggleButtonClassName = classNames(
+    dashboardStyles.hostToggleButton,
+    expanded && dashboardStyles.hostToggleButtonExpanded
+  );
 
   return (
     <article className={dashboardStyles.hostCard}>
@@ -658,12 +718,39 @@ function HostPanel({ entry, onProcessAction, onViewLogs }) {
             )}
           </div>
         </div>
-        <div className={dashboardStyles.hostStats}>
-          <StatusBadge status={summary.status}>{summaryLabel}</StatusBadge>
-          <span className={dashboardStyles.hostProcessCount}>{processLabel}</span>
+        <div className={dashboardStyles.hostHeaderControls}>
+          <button
+            type="button"
+            className={toggleButtonClassName}
+            onClick={toggleExpanded}
+            aria-expanded={expanded}
+            aria-controls={hostBodyId}
+            aria-label={toggleLabel}
+            title={toggleLabel}
+          >
+            <svg
+              className={dashboardStyles.hostToggleIcon}
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                fill="currentColor"
+                d="M9.47 6.97a.75.75 0 011.06 0l4.5 4.5a.75.75 0 010 1.06l-4.5 4.5a.75.75 0 01-1.06-1.06L13.94 12 9.47 7.53a.75.75 0 010-1.06z"
+              />
+            </svg>
+          </button>
+          <div className={dashboardStyles.hostStats}>
+            <StatusBadge status={summary.status}>{summaryLabel}</StatusBadge>
+            <span className={dashboardStyles.hostProcessCount}>{processLabel}</span>
+          </div>
         </div>
       </header>
-      <div className={dashboardStyles.hostBody}>
+      <div
+        className={dashboardStyles.hostBody}
+        id={hostBodyId}
+        hidden={!expanded}
+      >
         {error && (
           <div className={`${ui.alert} ${ui.alertError} ${dashboardStyles.hostError}`} role="alert">
             {error.message ?? 'Failed to communicate with supervisor.'}

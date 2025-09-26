@@ -36,6 +36,47 @@
   flex-wrap: wrap;
 }
 
+.hostHeaderControls {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.hostToggleButton {
+  border: none;
+  background: none;
+  color: var(--nv-color-secondary);
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--nv-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.hostToggleButton:hover,
+.hostToggleButton:focus-visible {
+  background-color: var(--nv-color-surface-muted);
+  color: var(--nv-color-secondary);
+}
+
+.hostToggleButton:focus-visible {
+  outline: 2px solid var(--nv-color-primary);
+  outline-offset: 2px;
+}
+
+.hostToggleIcon {
+  width: 1.1rem;
+  height: 1.1rem;
+  transition: transform 0.2s ease;
+}
+
+.hostToggleButtonExpanded .hostToggleIcon {
+  transform: rotate(90deg);
+}
+
 .hostTitle {
   margin: 0;
   font-size: 1.5rem;
