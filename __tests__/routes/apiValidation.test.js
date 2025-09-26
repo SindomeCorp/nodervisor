@@ -226,18 +226,36 @@ describe('API validation middleware', () => {
       app.use('/auth', createAuthApi(context));
     });
 
-    it('rejects login attempts with passwords that violate the policy', async () => {
-      const response = await request(app).post('/auth/login').send({
+    it('allows login when the password violates the policy but matches the stored hash', async () => {
+      const compareSpy = jest.spyOn(bcrypt, 'compare').mockResolvedValue(true);
+      userRepository.findByEmail.mockResolvedValue({
+        id: 1,
+        name: 'Existing User',
         email: 'user@example.com',
-        password: 'weakpass'
+        role: ROLE_NONE,
+        passwordHash: 'stored-hash'
       });
 
-      expect(response.status).toBe(400);
-      expect(response.body).toEqual({
-        status: 'error',
-        error: expect.objectContaining({ message: expect.stringMatching(/Password/) })
+      const response = await request(app).post('/auth/login').send({
+        email: 'user@example.com',
+        password: ' weakpass '
       });
-      expect(userRepository.findByEmail).not.toHaveBeenCalled();
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        status: 'success',
+        data: {
+          user: {
+            id: 1,
+            name: 'Existing User',
+            email: 'user@example.com',
+            role: ROLE_NONE
+          }
+        }
+      });
+      expect(userRepository.findByEmail).toHaveBeenCalledWith('user@example.com');
+      expect(compareSpy).toHaveBeenCalledWith('weakpass', 'stored-hash');
+      compareSpy.mockRestore();
     });
 
     it('allows registration when the payload satisfies the password policy', async () => {
