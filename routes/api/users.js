@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import { z } from 'zod';
 
 import { assertSessionAdmin } from '../../server/session.js';
+import { EmailAlreadyExistsError } from '../../data/users.js';
 import { ALL_ROLES } from '../../shared/roles.js';
 import { checkPasswordAgainstPolicy } from '../../shared/passwordPolicy.js';
 import { validateRequest } from '../middleware/validation.js';
@@ -44,6 +45,11 @@ export function createUsersApi(context) {
 
         res.status(201).json({ status: 'success', data: created });
       } catch (err) {
+        if (err instanceof EmailAlreadyExistsError) {
+          sendError(res, 409, 'Email already exists.');
+          return;
+        }
+
         handleRouteError(res, err);
       }
     }
@@ -92,6 +98,11 @@ export function createUsersApi(context) {
 
         res.json({ status: 'success', data: updated });
       } catch (err) {
+        if (err instanceof EmailAlreadyExistsError) {
+          sendError(res, 409, 'Email already exists.');
+          return;
+        }
+
         handleRouteError(res, err);
       }
     }

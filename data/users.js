@@ -1,6 +1,13 @@
 import { resolveInsertedId } from './utils.js';
 import { ROLE_NONE } from '../shared/roles.js';
 
+export class EmailAlreadyExistsError extends Error {
+  constructor() {
+    super('Email already exists.');
+    this.name = 'EmailAlreadyExistsError';
+  }
+}
+
 /** @typedef {import('../server/types.js').Knex} Knex */
 /** @typedef {import('../server/types.js').User} User */
 /** @typedef {import('../server/types.js').UserWithPassword} UserWithPassword */
@@ -79,20 +86,28 @@ export function createUsersRepository(db) {
      */
     async createUser({ name, email, passwordHash, role }) {
       return db.transaction(async (trx) => {
-        const insertResult = await trx(TABLE).insert({
-          Name: name,
-          Email: email,
-          Password: passwordHash,
-          Role: role
-        });
+        try {
+          const insertResult = await trx(TABLE).insert({
+            Name: name,
+            Email: email,
+            Password: passwordHash,
+            Role: role
+          });
 
-        const id = await resolveInsertedId(trx, TABLE, ID_COLUMN, insertResult);
-        if (id == null) {
-          return null;
+          const id = await resolveInsertedId(trx, TABLE, ID_COLUMN, insertResult);
+          if (id == null) {
+            return null;
+          }
+
+          const row = await trx(TABLE).where(ID_COLUMN, id).first();
+          return /** @type {User | null} */ (mapUser(row));
+        } catch (error) {
+          if (isUsersEmailUniqueViolation(error)) {
+            throw new EmailAlreadyExistsError();
+          }
+
+          throw error;
         }
-
-        const row = await trx(TABLE).where(ID_COLUMN, id).first();
-        return /** @type {User | null} */ (mapUser(row));
       });
     },
 
@@ -115,9 +130,17 @@ export function createUsersRepository(db) {
           updateData.Password = passwordHash;
         }
 
-        await trx(TABLE).where(ID_COLUMN, id).update(updateData);
-        const row = await trx(TABLE).where(ID_COLUMN, id).first();
-        return /** @type {User | null} */ (mapUser(row));
+        try {
+          await trx(TABLE).where(ID_COLUMN, id).update(updateData);
+          const row = await trx(TABLE).where(ID_COLUMN, id).first();
+          return /** @type {User | null} */ (mapUser(row));
+        } catch (error) {
+          if (isUsersEmailUniqueViolation(error)) {
+            throw new EmailAlreadyExistsError();
+          }
+
+          throw error;
+        }
       });
     },
 
@@ -131,4 +154,44 @@ export function createUsersRepository(db) {
       return db.transaction((trx) => trx(TABLE).where(ID_COLUMN, id).del());
     }
   };
+}
+
+function isUsersEmailUniqueViolation(error) {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const code = /** @type {{ code?: string }} */ (error).code;
+  const message = typeof error.message === 'string' ? error.message : '';
+
+  if (code === 'SQLITE_CONSTRAINT' || code === 'SQLITE_CONSTRAINT_UNIQUE') {
+    if (typeof message === 'string' && message.length > 0) {
+      const normalized = message.toLowerCase();
+      return normalized.includes('unique constraint failed: users.email');
+    }
+
+    return /** @type {{ errno?: number }} */ (error).errno === 19;
+  }
+
+  if (code === '23505') {
+    const constraint = /** @type {{ constraint?: string }} */ (error).constraint;
+    if (constraint && constraint.toLowerCase() === 'users_email_unique') {
+      return true;
+    }
+
+    const detail = /** @type {{ detail?: string }} */ (error).detail;
+    if (detail && detail.toLowerCase().includes('(email)')) {
+      return true;
+    }
+
+    return message.toLowerCase().includes('users_email_unique');
+  }
+
+  if (code === 'ER_DUP_ENTRY' || code === 'ER_DUP_ENTRY_WITH_KEY_NAME') {
+    const sqlMessage = /** @type {{ sqlMessage?: string }} */ (error).sqlMessage;
+    const target = sqlMessage ?? message;
+    return typeof target === 'string' && target.toLowerCase().includes("'email'");
+  }
+
+  return false;
 }
