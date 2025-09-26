@@ -97,12 +97,19 @@ Set `HEALTH_ENDPOINT_ENABLED=true` in your environment to expose a lightweight J
 
 The Nodervisor server listens on port `3000` by default. To expose it securely behind Apache you can configure a reverse proxy. The steps below assume an Ubuntu/Debian host, but the same directives work on other distributions.
 
-1. **Enable the required Apache modules** (if they are not already enabled):
+1. **Install Apache and Supervisor:**
+
+       sudo apt update
+       sudo apt install apache2 supervisor
+
+   The `supervisor` package installs the `supervisord` daemon and drops its main configuration at `/etc/supervisor/supervisord.conf`. You will edit this file in a later step.
+
+2. **Enable the required Apache modules** (if they are not already enabled) and load the new module configuration:
 
        sudo a2enmod proxy proxy_http ssl headers
        sudo systemctl reload apache2
 
-2. **Choose a TLS certificate option:**
+3. **Choose a TLS certificate option:**
 
    - **Self-signed certificate for testing:**
 
@@ -120,18 +127,15 @@ The Nodervisor server listens on port `3000` by default. To expose it securely b
 
      Certbot writes the certificate and key to `/etc/letsencrypt/live/<domain>/` and can automatically renew them. If you prefer to manage the Apache configuration manually, use `certbot certonly --apache` and point the virtual host to the generated files.
 
-3. **Create an Apache site configuration** pointing to the Nodervisor process running on port `3000`. Adjust the domain name and certificate paths to match your environment:
+4. **Link the provided Apache site configuration and enable it.** The repository includes [`config/apache/nodervisor.conf`](config/apache/nodervisor.conf) with the reverse-proxy directives shown below. Symlink it into Apache's `sites-available` directory and enable it:
+
+       sudo ln -s /path/to/nodervisor/config/apache/nodervisor.conf /etc/apache2/sites-available/nodervisor.conf
+       sudo a2ensite nodervisor.conf
+       sudo systemctl reload apache2
+
+   The configuration proxies HTTPS traffic to the locally running Nodervisor instance:
 
    ```apacheconf
-   <VirtualHost *:80>
-       ServerName example.com
-       ServerAlias www.example.com
-
-       RewriteEngine On
-       RewriteCond %{HTTPS} !=on
-       RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R=301,L]
-   </VirtualHost>
-
    <IfModule mod_ssl.c>
    <VirtualHost *:443>
        ServerName example.com
@@ -152,12 +156,39 @@ The Nodervisor server listens on port `3000` by default. To expose it securely b
        CustomLog ${APACHE_LOG_DIR}/nodervisor-access.log combined
    </VirtualHost>
    </IfModule>
+
+   <VirtualHost *:80>
+       ServerName example.com
+       ServerAlias www.example.com
+
+       RewriteEngine On
+       RewriteCond %{HTTPS} !=on
+       RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R=301,L]
+   </VirtualHost>
    ```
 
-4. **Enable the site and reload Apache:**
+5. **Configure supervisord for remote management.** Nodervisor connects to Supervisord via XML-RPC. Edit `/etc/supervisor/supervisord.conf` and ensure the following section is present (adjust the host, port, and credentials to match your security requirements):
 
-       sudo a2ensite nodervisor.conf
-       sudo systemctl reload apache2
+   ```ini
+   [inet_http_server]
+   port = 0.0.0.0:9009
+   username = nodervisor
+   password = choose-a-strong-password
+   ```
+
+   After saving the file, restart Supervisord so the changes take effect:
+
+       sudo systemctl restart supervisor
+
+6. **Manage the Nodervisor process with Supervisord.** The repository ships with [`supervisor.conf`](supervisor.conf), which defines a `nodervisor` program entry. Link it into Supervisor's configuration directory and reload:
+
+       sudo ln -s /path/to/nodervisor/supervisor.conf /etc/supervisor/conf.d/nodervisor.conf
+       sudo supervisorctl reread
+       sudo supervisorctl update
+
+   You can check the status of the process with:
+
+       sudo supervisorctl status nodervisor
 
 After reloading, Apache serves Nodervisor via HTTPS while forwarding requests to the Node.js server on port `3000`. Remember to keep your certificates renewed (Certbot installs a systemd timer by default) and adjust firewall rules to allow traffic on ports 80 and 443.
 
