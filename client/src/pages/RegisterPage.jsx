@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../sessionContext.jsx';
 import AuthPageLayout from './AuthPageLayout.jsx';
 import ui from '../styles/ui.module.css';
-import { checkPasswordAgainstPolicy, PASSWORD_POLICY_SUMMARY } from '../../shared/passwordPolicy.js';
+import { checkPasswordAgainstPolicy, PASSWORD_POLICY_SUMMARY } from '../../../shared/passwordPolicy.js';
 
 export default function RegisterPage() {
   const { register } = useSession();

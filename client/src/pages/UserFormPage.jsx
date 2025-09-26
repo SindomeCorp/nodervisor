@@ -3,8 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { requestJson } from '../apiClient.js';
 import ui from '../styles/ui.module.css';
-import { ALL_ROLES, ROLE_VIEWER } from '../../shared/roles.js';
-import { checkPasswordAgainstPolicy, PASSWORD_POLICY_SUMMARY } from '../../shared/passwordPolicy.js';
+import { ALL_ROLES, ROLE_VIEWER } from '../../../shared/roles.js';
+import { checkPasswordAgainstPolicy, PASSWORD_POLICY_SUMMARY } from '../../../shared/passwordPolicy.js';
 
 const ROLE_OPTIONS = ALL_ROLES;
 const DEFAULT_ROLE = ROLE_VIEWER;
