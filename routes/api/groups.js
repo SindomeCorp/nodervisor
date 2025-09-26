@@ -11,7 +11,9 @@ import { handleRouteError, sendError } from './utils.js';
 export function createGroupsApi(context) {
   const router = Router();
   const {
-    data: { groups: groupRepository }
+    data: { groups: groupRepository },
+    config,
+    db
   } = context;
 
   router.get('/', async (req, res) => {
@@ -76,6 +78,7 @@ export function createGroupsApi(context) {
           return;
         }
 
+        await config.refreshHosts(db);
         res.json({ status: 'success', data: updated });
       } catch (err) {
         handleRouteError(res, err);
@@ -98,6 +101,7 @@ export function createGroupsApi(context) {
         }
 
         await groupRepository.deleteGroup(id);
+        await config.refreshHosts(db);
         res.status(204).send();
       } catch (err) {
         handleRouteError(res, err);
