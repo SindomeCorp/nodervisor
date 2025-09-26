@@ -5,6 +5,7 @@ import { assertSessionRole } from '../../server/session.js';
 import { ROLE_ADMIN, ROLE_MANAGER } from '../../shared/roles.js';
 import { validateRequest } from '../middleware/validation.js';
 import { handleRouteError, sendError } from './utils.js';
+import { requiredTrimmedString } from './schemaHelpers.js';
 
 /** @typedef {import('../../server/types.js').ServerContext} ServerContext */
 
@@ -121,13 +122,3 @@ const groupIdParamsSchema = z.object({
     .number({ invalid_type_error: 'Invalid group id.' })
     .refine((value) => Number.isFinite(value), 'Invalid group id.')
 });
-
-function requiredTrimmedString(field) {
-  return z.preprocess(
-    (value) => (value === undefined ? value : String(value)),
-    z
-      .string({ required_error: `${field} is required.` })
-      .trim()
-      .min(1, `${field} is required.`)
-  );
-}

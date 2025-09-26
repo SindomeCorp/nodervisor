@@ -6,6 +6,7 @@ import { ROLE_ADMIN, ROLE_MANAGER } from '../../shared/roles.js';
 import { isSafeUrl, normalizeSafeUrl } from '../../shared/url.js';
 import { validateRequest } from '../middleware/validation.js';
 import { handleRouteError, sendError } from './utils.js';
+import { requiredTrimmedString } from './schemaHelpers.js';
 
 /** @typedef {import('../../server/types.js').ServerContext} ServerContext */
 
@@ -148,16 +149,6 @@ function nullableNumber(message) {
 
       return Number(value);
     });
-}
-
-function requiredTrimmedString(field) {
-  return z.preprocess(
-    (value) => (value === undefined ? value : String(value)),
-    z
-      .string({ required_error: `${field} is required.` })
-      .trim()
-      .min(1, `${field} is required.`)
-  );
 }
 
 function requiredHttpUrl(field) {
