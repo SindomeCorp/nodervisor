@@ -65,7 +65,12 @@ function StatusBadge({ status, children }) {
   );
 }
 
-const SCROLL_STICKY_THRESHOLD_PX = 24;
+const SCROLL_STICKY_EPSILON_PX = 2;
+
+function isScrolledToBottom(node) {
+  const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight;
+  return Math.abs(distanceFromBottom) <= SCROLL_STICKY_EPSILON_PX;
+}
 
 function createLogState() {
   return {
@@ -151,9 +156,7 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
     if (shouldAppend) {
       const container = logContentRef.current;
       if (container) {
-        const distanceFromBottom =
-          container.scrollHeight - container.scrollTop - container.clientHeight;
-        shouldStickToBottomRef.current = distanceFromBottom <= SCROLL_STICKY_THRESHOLD_PX;
+        shouldStickToBottomRef.current = isScrolledToBottom(container);
       } else {
         shouldStickToBottomRef.current = true;
       }
@@ -218,7 +221,12 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
           const newContent = typeof content === 'string' ? content : '';
           const canAppend = shouldAppend && nextOffset > previousTab.offset;
           const combinedContent = canAppend ? `${previousTab.content}${newContent}` : newContent;
-          if (canAppend && shouldStickToBottomRef.current) {
+          if (
+            shouldAppend &&
+            shouldStickToBottomRef.current &&
+            typeof newContent === 'string' &&
+            newContent.length > 0
+          ) {
             shouldScrollAfterUpdate = true;
           }
           return {
@@ -281,7 +289,9 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
       if (!node) {
         return;
       }
-      node.scrollTop = node.scrollHeight;
+      if (!isScrolledToBottom(node)) {
+        node.scrollTop = node.scrollHeight;
+      }
     });
   }, [logState, activeTab, open]);
 
