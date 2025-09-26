@@ -4,6 +4,10 @@ import pino from 'pino';
 import { ServiceError, sanitizeErrorDetails } from './errors.js';
 import { SupervisordClientWrapper } from './supervisordClientWrapper.js';
 
+export const DEFAULT_PROCESS_STREAM_INTERVAL_MS = 5000;
+export const MIN_PROCESS_STREAM_INTERVAL_MS = 1000;
+export const MAX_PROCESS_STREAM_INTERVAL_MS = 60000;
+
 const DEFAULT_RPC_OPTIONS = {
   requestTimeoutMs: 5000,
   maxRetries: 2,
@@ -104,7 +108,7 @@ export class SupervisordService {
     let timer;
     let previousState = new Map();
 
-    const normalizedInterval = Number.isFinite(intervalMs) && intervalMs > 0 ? intervalMs : 5000;
+    const normalizedInterval = this.#normalizeStreamInterval(intervalMs);
 
     const stop = () => {
       if (closed) {
@@ -183,6 +187,17 @@ export class SupervisordService {
     tick();
 
     return emitter;
+  }
+
+  #normalizeStreamInterval(value) {
+    if (!Number.isFinite(value)) {
+      return DEFAULT_PROCESS_STREAM_INTERVAL_MS;
+    }
+
+    return Math.min(
+      Math.max(value, MIN_PROCESS_STREAM_INTERVAL_MS),
+      MAX_PROCESS_STREAM_INTERVAL_MS
+    );
   }
 
   async getProcessLog({ hostId, processName, type, offset = 0, length = 16384 }) {

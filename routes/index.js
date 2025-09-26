@@ -1,6 +1,11 @@
 import { Router } from 'express';
 
-import { SupervisordService } from '../services/supervisordService.js';
+import {
+  SupervisordService,
+  DEFAULT_PROCESS_STREAM_INTERVAL_MS,
+  MAX_PROCESS_STREAM_INTERVAL_MS,
+  MIN_PROCESS_STREAM_INTERVAL_MS
+} from '../services/supervisordService.js';
 import { ServiceError, sanitizeErrorDetails } from '../services/errors.js';
 import { assertSessionRole, ensureAuthenticatedRequest, ensureRoleRequest } from '../server/session.js';
 import { ROLE_ADMIN, ROLE_MANAGER, ROLE_VIEWER } from '../shared/roles.js';
@@ -52,6 +57,8 @@ export function createRouter(context) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
   };
+
+  const clampNumber = (value, min, max) => Math.min(Math.max(value, min), max);
 
   const serveApp = ({ title, requiredRoles = null, requireAuth = true }) => (req, res) => {
     if (requireAuth) {
@@ -120,7 +127,15 @@ export function createRouter(context) {
 
       res.write(': stream-start\n\n');
 
-      const interval = parseNumber(req.query.interval, 5000);
+      const requestedInterval = parseNumber(
+        req.query.interval,
+        DEFAULT_PROCESS_STREAM_INTERVAL_MS
+      );
+      const interval = clampNumber(
+        requestedInterval,
+        MIN_PROCESS_STREAM_INTERVAL_MS,
+        MAX_PROCESS_STREAM_INTERVAL_MS
+      );
       const abortController = new AbortController();
       const stream = supervisordService.createProcessStream({
         intervalMs: interval,
