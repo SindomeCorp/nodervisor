@@ -55,4 +55,3 @@ export function assertSafeUrl(value, message = 'URL must be a valid http(s) URL.
   return normalized;
 }
 
-export const safeUrlProtocols = SAFE_URL_PROTOCOLS;
