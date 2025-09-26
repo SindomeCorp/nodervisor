@@ -69,8 +69,12 @@ function StatusBadge({ status, children }) {
 const SCROLL_STICKY_EPSILON_PX = 2;
 
 function isScrolledToBottom(node) {
+  if (node.scrollHeight <= node.clientHeight) {
+    return true;
+  }
+
   const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight;
-  return Math.abs(distanceFromBottom) <= SCROLL_STICKY_EPSILON_PX;
+  return distanceFromBottom <= SCROLL_STICKY_EPSILON_PX;
 }
 
 function createLogState() {
