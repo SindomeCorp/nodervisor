@@ -26,6 +26,34 @@ export async function refreshSessionState({
   return sessionUser;
 }
 
+export function createRefreshSessionHandler({
+  authClient,
+  setAllowSelfRegistration,
+  setUser,
+  setStatus
+}) {
+  return async ({ background = false } = {}) => {
+    if (!background) {
+      setStatus('loading');
+    }
+    try {
+      return await refreshSessionState({
+        authClient,
+        setAllowSelfRegistration,
+        setUser,
+        setStatus
+      });
+    } catch (err) {
+      const isAuthError = err?.status === 401 || err?.status === 403;
+      if (!background || isAuthError) {
+        setUser(null);
+        setStatus('unauthenticated');
+      }
+      throw err;
+    }
+  };
+}
+
 export const SessionContext = createContext({
   user: null,
   status: 'loading',
@@ -54,23 +82,12 @@ export function SessionProvider({ initialState, children, authClientFactory = cr
   const initialFetchCompleted = useRef(false);
 
   const refreshSession = useCallback(
-    async ({ background = false } = {}) => {
-      if (!background) {
-        setStatus('loading');
-      }
-      try {
-        return await refreshSessionState({
-          authClient,
-          setAllowSelfRegistration,
-          setUser,
-          setStatus
-        });
-      } catch (err) {
-        setUser(null);
-        setStatus('unauthenticated');
-        throw err;
-      }
-    },
+    createRefreshSessionHandler({
+      authClient,
+      setAllowSelfRegistration,
+      setUser,
+      setStatus
+    }),
     [authClient]
   );
 
