@@ -496,7 +496,6 @@ function ProcessRow({ hostId, hostName, process, onProcessAction, onViewLogs }) 
     typeof nameCandidate === 'string'
       ? nameCandidate.trim() || 'Unknown service'
       : nameCandidate || 'Unknown service';
-  const description = process?.description;
   const status = process?.statename ?? 'CONERR';
   const startSeconds = Number(process?.start);
   const nowSeconds = Number(process?.now);
@@ -532,37 +531,22 @@ function ProcessRow({ hostId, hostName, process, onProcessAction, onViewLogs }) 
   const disableRestart = pendingAction !== null || !identifier;
   const disableLogs = !identifier || typeof onViewLogs !== 'function';
 
-  const metaParts = [];
-  if (Number.isFinite(pid) && pid > 0) {
-    metaParts.push(`PID ${pid}`);
-  }
-  if (uptime) {
-    metaParts.push(`Uptime ${uptime}`);
-  }
-  if (startedAt) {
-    metaParts.push(`Started ${startedAt}`);
-  }
+  const pidDisplay = Number.isFinite(pid) && pid > 0 ? pid : '—';
 
   return (
     <tr>
       <th scope="row">
         <p className={dashboardStyles.processName}>{displayName}</p>
-        {description && <p className={dashboardStyles.processDescription}>{description}</p>}
         {spawnError && (
           <p className={dashboardStyles.processDescription}>Last error: {spawnError}</p>
         )}
-        {metaParts.length > 0 && (
-          <div className={dashboardStyles.processMeta}>
-            {metaParts.map((item) => (
-              <span key={item}>{item}</span>
-            ))}
-          </div>
-        )}
       </th>
+      <td className={dashboardStyles.pidCell}>{pidDisplay}</td>
       <td className={dashboardStyles.statusCell}>
         <StatusBadge status={status} />
       </td>
       <td className={dashboardStyles.uptimeCell}>{uptime ?? '—'}</td>
+      <td className={dashboardStyles.startedCell}>{startedAt ?? '—'}</td>
       <td className={classNames(dashboardStyles.actionsCell, ui.tableCellNumeric)}>
         <div className={ui.buttonGroup} role="group">
           <button
@@ -664,8 +648,10 @@ function HostPanel({ entry, onProcessAction, onViewLogs }) {
               <thead>
                 <tr>
                   <th scope="col">Service</th>
+                  <th scope="col">PID</th>
                   <th scope="col">Status</th>
                   <th scope="col">Uptime</th>
+                  <th scope="col">Started</th>
                   <th scope="col" className={ui.tableCellNumeric}>
                     Actions
                   </th>
