@@ -76,14 +76,15 @@ function createMockSupervisordClient({ processSnapshots } = {}) {
   };
 }
 
-async function createTestApp({ userRole = ROLE_ADMIN, supervisordClientOptions } = {}) {
+async function createTestApp({ userRole = ROLE_ADMIN, supervisordClientOptions, host: hostOverride } = {}) {
   const host = {
     idHost: 'alpha',
     idGroup: null,
     Name: 'Test Host',
     Url: 'http://host-1',
     GroupName: null,
-    override: null
+    override: null,
+    ...(hostOverride ?? {})
   };
 
   const userRecord = {
@@ -323,15 +324,56 @@ describe('Nodervisor application', () => {
     const response = await agent.get('/api/v1/supervisors');
     expect(response.status).toBe(200);
     expect(client.getAllProcessInfo).toHaveBeenCalledTimes(1);
-    expect(response.body).toEqual({
-      status: 'success',
-      data: {
-        [host.idHost]: {
-          host,
-          data: [{ name: 'app', group: 'app', state: 1 }]
+    const payload = response.body;
+    expect(payload.status).toBe('success');
+    const entry = payload.data?.[host.idHost];
+    expect(entry).toBeDefined();
+    expect(entry?.data).toEqual([{ name: 'app', group: 'app', state: 1 }]);
+    expect(entry?.host).toEqual(
+      expect.objectContaining({
+        idHost: host.idHost,
+        idGroup: host.idGroup,
+        Name: host.Name,
+        GroupName: host.GroupName,
+        Url: host.Url
+      })
+    );
+    expect(entry?.host).not.toHaveProperty('override');
+  });
+
+  it('omits override credentials from supervisor responses', async () => {
+    const hostOverride = {
+      Url: 'http://user:secret@host-1/RPC2',
+      override: {
+        Url: 'http://user:secret@host-1/RPC2',
+        connection: {
+          username: 'user',
+          password: 'secret',
+          socketPath: '/tmp/supervisor.sock'
         }
       }
-    });
+    };
+
+    const { app, client, host } = await createTestApp({ host: hostOverride });
+    const agent = request.agent(app);
+
+    await login(agent);
+
+    const response = await agent.get('/api/v1/supervisors');
+    expect(response.status).toBe(200);
+    expect(client.getAllProcessInfo).toHaveBeenCalledTimes(1);
+
+    const entry = response.body.data?.[host.idHost];
+    expect(entry).toBeDefined();
+    expect(entry?.host).toEqual(
+      expect.objectContaining({
+        idHost: host.idHost,
+        Url: 'http://host-1/RPC2'
+      })
+    );
+    expect(entry?.host.Url).not.toContain('user');
+    expect(entry?.host.Url).not.toContain('secret');
+    expect(entry?.host).not.toHaveProperty('override');
   });
 
   it('allows managers to manage infrastructure endpoints', async () => {
@@ -660,10 +702,14 @@ describe('Nodervisor application', () => {
       const snapshotData = JSON.parse(snapshotEvent.data);
       expect(snapshotData).toEqual({
         [host.idHost]: {
-          host,
+          host: expect.objectContaining({
+            idHost: host.idHost,
+            Url: host.Url
+          }),
           data: processSnapshots[0]
         }
       });
+      expect(snapshotData?.[host.idHost]?.host).not.toHaveProperty('override');
 
       const updateEvent = events.find((entry) => entry.event === 'update');
       expect(updateEvent).toBeDefined();
@@ -671,12 +717,16 @@ describe('Nodervisor application', () => {
       expect(updateData).toEqual({
         updates: {
           [host.idHost]: {
-            host,
+            host: expect.objectContaining({
+              idHost: host.idHost,
+              Url: host.Url
+            }),
             data: processSnapshots[1]
           }
         },
         removed: []
       });
+      expect(updateData?.updates?.[host.idHost]?.host).not.toHaveProperty('override');
     } finally {
       server.close();
     }
