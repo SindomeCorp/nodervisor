@@ -1,87 +1,298 @@
 .section {
-  padding-bottom: 2rem;
-}
-
-.grid {
-  display: grid;
-  gap: 1.5rem;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-}
-
-.card {
-  height: 100%;
-  text-align: center;
-  border-radius: var(--nv-radius-md);
-  background: var(--nv-color-surface);
-  box-shadow: var(--nv-shadow-md);
   display: flex;
   flex-direction: column;
-  justify-content: center;
-}
-
-.cardBody {
-  padding: 2rem 1.5rem;
-}
-
-.cardTitle {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin: 0 0 1.25rem;
-  color: var(--nv-color-secondary);
-}
-
-.statusLabel {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  font-size: 2.5rem;
-  font-weight: 600;
-}
-
-.statusIcon {
-  width: 2.5rem;
-  height: 2.5rem;
-}
-
-.statusToneDanger {
-  color: #aa2700;
-}
-
-.statusToneSuccess {
-  color: var(--nv-color-success);
-}
-
-.statusToneInfo {
-  color: #1641c4;
-}
-
-.statusToneWarning {
-  color: var(--nv-color-warning);
+  gap: 1.75rem;
 }
 
 .sectionTitle {
+  margin: 0;
+  font-size: 1.9rem;
+}
+
+.sectionSubtitle {
+  margin: 0;
+  color: var(--nv-color-text-muted);
+  max-width: 60ch;
+}
+
+.hostList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.hostCard {
+  background-color: #ffffff;
+  border-radius: var(--nv-radius-md, 14px);
+  box-shadow: var(--nv-shadow-md, 0 12px 24px rgba(15, 23, 42, 0.08));
+  padding: 1.75rem;
+}
+
+.hostHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.hostTitle {
+  margin: 0;
   font-size: 1.5rem;
+  color: var(--nv-color-secondary);
+}
+
+.hostMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.95rem;
+  color: var(--nv-color-text-muted);
+}
+
+.hostMetaLink {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.hostStats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: flex-end;
+}
+
+.hostProcessCount {
+  font-size: 0.9rem;
+  color: var(--nv-color-text-muted);
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.95rem;
+}
+
+.statusIcon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.statusToneDanger {
+  background-color: rgba(199, 46, 28, 0.16);
+  color: #7f1d1d;
+}
+
+.statusToneSuccess {
+  background-color: rgba(17, 116, 74, 0.16);
+  color: #0f5132;
+}
+
+.statusToneInfo {
+  background-color: rgba(17, 63, 82, 0.12);
+  color: #103f52;
+}
+
+.statusToneWarning {
+  background-color: rgba(255, 177, 66, 0.2);
+  color: #92400e;
+}
+
+.hostBody {
+  margin-top: 1.5rem;
+}
+
+.processName {
   font-weight: 600;
   margin: 0;
   color: var(--nv-color-secondary);
 }
 
-.error {
-  margin: 1rem 0;
+.processDescription {
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+  color: var(--nv-color-text-muted);
 }
 
-@media (max-width: 575px) {
-  .cardBody {
-    padding: 1.5rem 1.25rem;
+.processMeta {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.35rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--nv-color-text-muted);
+}
+
+.statusCell {
+  white-space: nowrap;
+}
+
+.uptimeCell {
+  font-size: 0.95rem;
+  color: var(--nv-color-text-muted);
+  white-space: nowrap;
+}
+
+.actionsCell {
+  text-align: right;
+}
+
+.actionsCell .buttonGroup {
+  justify-content: flex-end;
+}
+
+.actionError {
+  margin-top: 0.5rem;
+  color: var(--nv-color-danger);
+  font-size: 0.85rem;
+}
+
+.emptyState {
+  color: var(--nv-color-text-muted);
+  margin: 0;
+}
+
+.hostError {
+  margin-bottom: 1rem;
+}
+
+.logOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 60;
+}
+
+.logDialog {
+  background: #ffffff;
+  border-radius: var(--nv-radius-md, 14px);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.22);
+  width: min(900px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.logHeader {
+  padding: 1.5rem 1.5rem 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.logTitle {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.logSubtitle {
+  margin: 0.4rem 0 0;
+  font-size: 0.95rem;
+  color: var(--nv-color-text-muted);
+}
+
+.logTabs {
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem 0.5rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.logTab {
+  border: none;
+  background: none;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--nv-radius-sm);
+  cursor: pointer;
+  color: var(--nv-color-text-muted);
+}
+
+.logTab[aria-selected='true'] {
+  background: rgba(17, 63, 82, 0.1);
+  color: var(--nv-color-secondary);
+}
+
+.logContent {
+  padding: 1rem 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.logPre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, SFMono, Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.logFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem 1.5rem;
+}
+
+.logFooterActions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.logStatus {
+  font-size: 0.85rem;
+  color: var(--nv-color-text-muted);
+}
+
+.logError {
+  color: #fca5a5;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.closeButton {
+  border: none;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--nv-color-text-muted);
+}
+
+.closeButton:hover,
+.closeButton:focus-visible {
+  color: var(--nv-color-secondary);
+}
+
+@media (max-width: 720px) {
+  .hostHeader {
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .statusLabel {
-    font-size: 2rem;
+  .hostStats {
+    align-items: flex-start;
   }
 
-  .statusIcon {
-    width: 2rem;
-    height: 2rem;
+  .actionsCell {
+    text-align: left;
+  }
+
+  .actionsCell .buttonGroup {
+    justify-content: flex-start;
   }
 }
