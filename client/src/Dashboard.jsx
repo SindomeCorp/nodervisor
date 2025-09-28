@@ -678,6 +678,14 @@ function HostPanel({ entry, onProcessAction, onViewLogs }) {
       : hostProcessCount === 0
       ? 'No services reported.'
       : `${hostProcessCount} ${hostProcessCount === 1 ? 'service' : 'services'}`;
+  const runningCount = Array.isArray(processes)
+    ? processes.filter((proc) => proc?.statename === 'RUNNING').length
+    : 0;
+  const stoppedCount = Array.isArray(processes)
+    ? processes.filter((proc) => proc?.statename === 'STOPPED').length
+    : 0;
+  const shouldShowSummaryBadge =
+    summary.status !== 'CONERR' && summary.status !== 'RUNNING' && summary.status !== 'STOPPED';
   const [expanded, setExpanded] = useState(() => readHostExpansion(hostId, false));
   const hostBodyId = useMemo(() => getHostBodyId(hostId), [hostId]);
 
@@ -741,7 +749,40 @@ function HostPanel({ entry, onProcessAction, onViewLogs }) {
             </svg>
           </button>
           <div className={dashboardStyles.hostStats}>
-            <StatusBadge status={summary.status}>{summaryLabel}</StatusBadge>
+            <div className={dashboardStyles.hostStatusPills}>
+              {summary.status === 'CONERR' ? (
+                <StatusBadge status={summary.status}>{summaryLabel}</StatusBadge>
+              ) : (
+                <>
+                  {shouldShowSummaryBadge && (
+                    <StatusBadge status={summary.status}>{summaryLabel}</StatusBadge>
+                  )}
+                  <span
+                    className={classNames(
+                      dashboardStyles.hostStatusPill,
+                      dashboardStyles.hostStatusPillRunning
+                    )}
+                  >
+                    <StatusIcon
+                      name={STATUS_META.RUNNING.icon}
+                      className={dashboardStyles.hostStatusPillIcon}
+                    />
+                    <span>{`${runningCount} running`}</span>
+                  </span>
+                  {stoppedCount > 0 && (
+                    <span
+                      className={classNames(
+                        dashboardStyles.hostStatusPill,
+                        dashboardStyles.hostStatusPillStopped
+                      )}
+                    >
+                      <StatusIcon name="pause" className={dashboardStyles.hostStatusPillIcon} />
+                      <span>{`${stoppedCount} stopped`}</span>
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
             <span className={dashboardStyles.hostProcessCount}>{processLabel}</span>
           </div>
         </div>
