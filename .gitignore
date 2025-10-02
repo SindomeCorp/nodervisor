@@ -39,3 +39,7 @@ node_modules
 
 # Database files
 *.sqlite
+
+# env
+
+.env
