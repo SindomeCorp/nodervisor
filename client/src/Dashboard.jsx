@@ -266,7 +266,11 @@ function ProcessLogDialog({ open, hostId, hostName, processName, displayName, on
           const nextOffset = Number.isFinite(Number(offset)) ? Number(offset) : 0;
           const newContent = typeof content === 'string' ? content : '';
           const canAppend = shouldAppend && nextOffset > previousTab.offset;
-          const combinedContent = canAppend ? `${previousTab.content}${newContent}` : newContent;
+          const combinedContent = shouldAppend
+            ? canAppend
+              ? `${previousTab.content}${newContent}`
+              : previousTab.content
+            : newContent;
           if (shouldAppend && shouldStickToBottom && typeof newContent === 'string' && newContent.length > 0) {
             shouldScrollAfterUpdate = true;
           }
