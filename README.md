@@ -85,7 +85,7 @@ The session store uses the same connection details by default, but you can overr
   For instance:
 
       [inet_http_server]
-      port = *:9009 ;
+      port = *:9000 ;
 
   At this point, navigating back to the home page should show you a list of your hosts, and the processes running on them.
 
@@ -171,7 +171,7 @@ The Nodervisor server listens on port `3000` by default. To expose it securely b
 
    ```ini
    [inet_http_server]
-   port = 0.0.0.0:9009
+   port = 0.0.0.0:9000
    username = nodervisor
    password = choose-a-strong-password
    ```
